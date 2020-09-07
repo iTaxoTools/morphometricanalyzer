@@ -1,5 +1,5 @@
 from library.record import *
-from typing import Set, List, Tuple, TextIO, Optional, Iterator
+from typing import Set, List, Tuple, TextIO, Optional, Iterator, cast
 
 
 class HeaderFixer():
@@ -25,8 +25,9 @@ class HeaderFixer():
         self.verify_metafields()
         self.check_missing_metafields()
         self.make_unique_variable_names()
-        self.variables = set(self.fields) - set(HeaderFixer.required_fields)
-        self.variables.discard(None)
+        variables = set(self.fields) - set(HeaderFixer.required_fields)
+        variables.discard(None)
+        self.variables = cast(Set[str], variables)
 
     def correct_metafield(self, correct_name: str, variants: Set[str]) -> None:
         """

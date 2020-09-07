@@ -3,9 +3,11 @@ import sys
 import tkinter as tk
 import tkinter.messagebox
 import tkinter.ttk as ttk
+import io
 
 from library.gui_utils import *
 from library.mistake_corrector import *
+from library.analyses import analyse
 
 
 def gui_main() -> None:
@@ -55,9 +57,13 @@ def gui_main() -> None:
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "--cmd":
         corrector = MistakeCorrector(sys.stdin)
+        buf = io.StringIO()
         for line in corrector:
+            print(line, file=buf)
             print(line)
         corrector.report(sys.stderr)
+        buf.seek(0, 0)
+        analyse(buf, sys.stdout, corrector.header_fixer.variables)
     else:
         gui_main()
 
