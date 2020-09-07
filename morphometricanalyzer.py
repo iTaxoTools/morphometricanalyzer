@@ -30,9 +30,13 @@ def gui_main() -> None:
         try:
             with open(input_file) as input_file, open(output_file, mode='w') as output_file, open(table_file, mode='w') as table_file:
                 corrector = MistakeCorrector(input_file)
+                buf = io.StringIO()
                 for line in corrector:
                     print(line, file=table_file)
+                    print(line, file=buf)
                 corrector.report(output_file)
+                buf.seek(0, 0)
+                analyse(buf, output_file, corrector.header_fixer.variables)
         except ValueError as ex:
             tk.messagebox.showerror("Error", str(ex))
         except FileNotFoundError as ex:
