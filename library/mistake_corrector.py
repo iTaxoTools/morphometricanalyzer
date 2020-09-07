@@ -1,4 +1,4 @@
-from record import *
+from library.record import *
 from typing import Set, List, Tuple, TextIO, Optional, Iterator
 
 
