@@ -206,6 +206,8 @@ class MistakeCorrector():
             record.remark_add(
                 "The column sex contains a category different from male, female, juvenile or larva")
             return
+        else:
+            record.sex = sex
 
     def correct_values(self, record: Record) -> None:
         """
