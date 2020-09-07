@@ -26,7 +26,7 @@ class HeaderFixer():
         self.check_missing_metafields()
         self.make_unique_variable_names()
         self.variables = set(self.fields) - set(HeaderFixer.required_fields)
-        self.variables.remove(None)
+        self.variables.discard(None)
 
     def correct_metafield(self, correct_name: str, variants: Set[str]) -> None:
         """
@@ -79,7 +79,7 @@ class HeaderFixer():
         Check if some metafields are missing,
         returns false if the essential metafields are missing
         """
-        essential = {'specimen_id', 'species'}
+        essential = {'specimenid', 'species'}
         nonessential = {'locality', 'sex'}
         if not nonessential <= set(self.fields):
             self.nonessential_missing = True
@@ -159,12 +159,12 @@ class MistakeCorrector():
             print("Some or all variable fields contained values with commas; these have been converted to periods assuming that they were meant to be decimal separators as usual e.g. in Spanish, French or German.",
                   file=output_file)
         if self.invalid_content_count:
-            print("A total of {self.invalid_content_count} cases with invalid content (not a number) were detected in the fields of one or several variables; this content has been deleted and in the analysis is treated as missing value.", file=output_file)
+            print(f"A total of {self.invalid_content_count} cases with invalid content (not a number) were detected in the fields of one or several variables; this content has been deleted and in the analysis is treated as missing value.", file=output_file)
         empty_columns = self.header_fixer.variables - self.vars_with_numbers
         if empty_columns:
             for var in empty_columns:
                 print(
-                    "Variable {var} does not appear to contain numerical values and is therefore excluded from all calculations.", file=output_file)
+                    f"Variable {var} does not appear to contain numerical values and is therefore excluded from all calculations.", file=output_file)
 
     def __iter__(self) -> "MistakeCorrector":
         return self
@@ -197,15 +197,15 @@ class MistakeCorrector():
             larva={"l", "l.", "larv", "larv.", "larvae", "larve"}
         )
         sex = record.sex.casefold()
+        for standard_sex, variants in corrections.items():
+            if sex in variants:
+                record.sex = standard_sex
+                return
         if sex not in corrections:
             self.unusual_sexes.add(sex)
             record.remark_add(
                 "The column sex contains a category different from male, female, juvenile or larva")
             return
-        for standard_sex, variants in corrections.items():
-            if sex in variants:
-                record.sex = standard_sex
-                break
 
     def correct_values(self, record: Record) -> None:
         """
