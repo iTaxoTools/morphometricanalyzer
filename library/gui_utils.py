@@ -54,3 +54,35 @@ class AnalysisOptions():
 
     def get(self) -> List[str]:
         return [name for name, (var, _) in self.checkboxes.items() if var.get()]
+
+
+class AnalysesWidget():
+    """
+    Class for containing a group of AnalysisOptions widgets
+
+    Can change the number of widgets inside
+    """
+
+    def __init__(self, parent: tk.Widget):
+        self.frame = ttk.Frame(parent)
+        self.children: List[AnalysisOptions] = []
+        self.grid = self.frame.grid
+
+    def set_count(self, n: int) -> None:
+        """
+        Creates or destroy AnalysisOptions widgets, so that their count becomes n
+        """
+        n = max(n, 0)
+        current_count = len(self.children)
+        if n < current_count:  # destroy children if there are too much
+            for child in self.children[n:]:
+                child.destroy()
+            self.children = self.children[0:n]  # perhaps del self.children[n:]
+        elif n > current_count:  # create children, if there are not enough
+            for i in range(current_count, n):
+                self.children.append(AnalysisOptions(
+                    self.frame, label=f"Analysis {i}: Separate by "))
+                self.children[i].grid(row=i, column=0)
+
+    def get(self) -> List[List[str]]:
+        return [child.get() for child in self.children]
