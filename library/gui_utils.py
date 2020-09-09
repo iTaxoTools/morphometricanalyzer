@@ -2,7 +2,7 @@ import os.path
 import tkinter as tk
 import tkinter.filedialog
 import tkinter.ttk as ttk
-from typing import Literal, Any
+from typing import Literal, Any, Dict, Tuple, List
 
 
 class FileChooser():
@@ -30,3 +30,27 @@ class FileChooser():
         self.entry.grid(row=1, column=0, sticky='nwse')
         self.button.grid(row=1, column=1)
         self.grid = self.frame.grid
+
+
+class AnalysisOptions():
+    """
+    Class that constists of a label and checkboxes 'sex', 'species', 'locality'
+    """
+
+    def __init__(self, parent: tk.Widget, *, label: str):
+        self.frame = ttk.Frame(parent)
+        self.label = ttk.Label(self.frame, text=label)
+        self.checkboxes: Dict[str, Tuple[tk.BooleanVar, ttk.Checkbutton]] = {}
+        for name in ['species', 'sex', 'locality']:
+            var = tk.BooleanVar()
+            self.checkboxes[name] = (var, ttk.Checkbutton(
+                self.frame, text=name.capitalize(), variable=var))
+
+        self.label.grid(row=0, column=0)
+        for i, (_, chkbox) in enumerate(self.checkboxes.values()):
+            chkbox.grid(row=0, column=(1+i))
+        self.grid = self.frame.grid
+        self.destroy = self.frame.destroy
+
+    def get(self) -> List[str]:
+        return [name for name, (var, _) in self.checkboxes.items() if var.get()]
