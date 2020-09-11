@@ -95,7 +95,7 @@ def main() -> None:
             print(line)
         corrector.report(sys.stderr)
         buf.seek(0, 0)
-        analyse(buf, sys.stdout,
+        analyse(buf, sys.stderr,
                 corrector.header_fixer.variables, [['species']])
     else:
         gui_main()
