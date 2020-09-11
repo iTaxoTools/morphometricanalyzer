@@ -5,7 +5,9 @@ import pandas as pd
 
 def mean_and_others(col: pd.Series) -> str:
     num = col.count()
-    if num < 2:
+    if num == 0:
+        return ""
+    elif num < 2:
         return f"{col.mean():.3f}, N = {num}"
     else:
         return f"{col.mean():.3f} ± {col.std():.3f} ({col.min():.3f} - {col.max():.3f}), N = {num}"
@@ -13,7 +15,9 @@ def mean_and_others(col: pd.Series) -> str:
 
 def median_and_others(col: pd.Series) -> str:
     num = col.count()
-    if num < 2:
+    if num == 0:
+        return ""
+    elif num < 2:
         return f"{col.median():.3f}, N = {num}"
     else:
         return f"{col.median():.3f}, {col.quantile(0.75):.3f} - {col.quantile(0.25):.3f} ({col.min():.3f} - {col.max():.3f}), N = {num}"
