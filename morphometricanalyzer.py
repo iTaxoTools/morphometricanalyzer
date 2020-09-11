@@ -96,7 +96,7 @@ def main() -> None:
         corrector.report(sys.stderr)
         buf.seek(0, 0)
         analyse(buf, sys.stderr,
-                corrector.header_fixer.variables, [['species']])
+                corrector.header_fixer.variables, [['species', 'sex']])
     else:
         gui_main()
 

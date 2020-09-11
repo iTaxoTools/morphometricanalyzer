@@ -36,6 +36,7 @@ class AnalysisOptions():
     """
     Class that constists of a label and checkboxes 'sex', 'species', 'locality'
     """
+    default_choices = {'species', 'sex'}
 
     def __init__(self, parent: tk.Widget, *, label: str):
         self.frame = ttk.Frame(parent)
@@ -43,6 +44,8 @@ class AnalysisOptions():
         self.checkboxes: Dict[str, Tuple[tk.BooleanVar, ttk.Checkbutton]] = {}
         for name in ['species', 'sex', 'locality']:
             var = tk.BooleanVar()
+            if name in AnalysisOptions.default_choices:
+                var.set(True)
             self.checkboxes[name] = (var, ttk.Checkbutton(
                 self.frame, text=name.capitalize(), variable=var))
 
