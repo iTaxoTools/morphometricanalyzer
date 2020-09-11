@@ -11,7 +11,7 @@ class Record():
     variables attribute contains the variables in the row, excluding the metadata
     """
 
-    metadata_fields = {'specimenid', 'species', 'sex', 'locality'}
+    metadata_fields = {'specimenid', 'species', 'sex', 'locality', 'remark'}
 
     def __init__(self, fields: List[Optional[str]], row: str):
         """
@@ -68,7 +68,7 @@ class Record():
         """
         Prints the record as a row of a tab-separated data file
         """
-        return "\t".join(self[field] if field is not None else "" for field in self.fields) + f"\t{self.remark}"
+        return "\t".join(self[field] if field is not None else "" for field in self.fields)
 
     def remark_add(self, remark: str) -> None:
         """

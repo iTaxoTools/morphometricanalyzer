@@ -25,8 +25,11 @@ class HeaderFixer():
         self.verify_metafields()
         self.check_missing_metafields()
         self.make_unique_variable_names()
+        if "remark" not in self.fields:
+            self.fields.append("remark")
         variables = set(self.fields) - set(HeaderFixer.required_fields)
         variables.discard(None)
+        variables.discard("remark")
         self.variables = cast(Set[str], variables)
 
     def correct_metafield(self, correct_name: str, variants: Set[str]) -> None:
@@ -241,4 +244,6 @@ class MistakeCorrector():
         return record.to_row()
 
     def yield_header(self) -> str:
-        return "\t".join(field if field is not None else "" for field in self.header_fixer.fields) + "\t" + "Remark"
+        header = "\t".join(
+            field if field is not None else "" for field in self.header_fixer.fields)
+        return header
