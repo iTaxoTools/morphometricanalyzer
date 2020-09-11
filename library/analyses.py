@@ -11,6 +11,14 @@ def mean_and_others(col: pd.Series) -> str:
         return f"{col.mean():.3f} ± {col.std():.3f} ({col.min():.3f} - {col.max():.3f}), N = {num}"
 
 
+def median_and_others(col: pd.Series) -> str:
+    num = col.count()
+    if num < 2:
+        return f"{col.median():.3f}, N = {num}"
+    else:
+        return f"{col.median():.3f}, {col.quantile(0.75):.3f} - {col.quantile(0.25):.3f} ({col.min():.3f} - {col.max():.3f}), N = {num}"
+
+
 def mean_analysis(table: pd.core.groupby.GroupBy, variables: Set[str]) -> Iterator[pd.DataFrame]:
     # create new column names
     meanvar_rename = {var: f"Mean{var.capitalize()}" for var in variables}
@@ -19,6 +27,16 @@ def mean_analysis(table: pd.core.groupby.GroupBy, variables: Set[str]) -> Iterat
     yield table.mean().rename(columns=meanvar_rename)
     # table of means, stds, mins, maxes and counts
     yield table.aggregate(mean_and_others).rename(columns=meanvar_rename)
+
+
+def median_analysis(table: pd.core.groupby.GroupBy, variables: Set[str]) -> Iterator[pd.DataFrame]:
+    # create new column names
+    medianvar_rename = {var: f"Median{var.capitalize()}" for var in variables}
+
+    # table of medians
+    yield table.median().rename(columns=medianvar_rename)
+    # table of medians, stds, mins, maxes and counts
+    yield table.aggregate(median_and_others).rename(columns=medianvar_rename)
 
 
 def analyse(buf: TextIO, output_file: TextIO, variables: Set[str], analyses: List[List[str]]) -> None:
@@ -30,10 +48,13 @@ def analyse(buf: TextIO, output_file: TextIO, variables: Set[str], analyses: Lis
 
 
 def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], output_file: TextIO) -> None:
-
     # groupby doesn't behave as needed if analysis is empty
     groupedtable = table.groupby(analysis) if analysis else table
 
     for table in mean_analysis(groupedtable, variables):
+        table.to_csv(output_file, float_format="%.3f", sep='\t')
+        output_file.write("\n")
+
+    for table in median_analysis(groupedtable, variables):
         table.to_csv(output_file, float_format="%.3f", sep='\t')
         output_file.write("\n")
