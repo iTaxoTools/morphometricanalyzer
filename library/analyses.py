@@ -58,11 +58,23 @@ def median_analysis(table: pd.core.groupby.GroupBy, variables: Set[str]) -> Iter
     yield table.aggregate(median_and_others).rename(columns=medianvar_rename)
 
 
+def format_pvalue(pvalue: float) -> str:
+    """
+    Formats a pvalue up to 5 or 10 decimals depending on its size, or shows that it's too small.
+    """
+    if pvalue < 1e-10:
+        return f"<{1e-10:.10f}"
+    elif pvalue < 1e-5:
+        return format(pvalue, ".10f")
+    else:
+        return format(pvalue, ".5f")
+
+
 def bonferroni_mark(pvalue: float, bonferroni_corr: float) -> str:
     """
     Prints the pvalue with 3 digits of precision and marks it's significance according to Bonferroni analysis
     """
-    return format(pvalue, ".3f") + ("*" if pvalue < bonferroni_corr else "§" if pvalue < 0.05 else "")
+    return format_pvalue(pvalue) + ("*" if pvalue < bonferroni_corr else "§" if pvalue < 0.05 else "")
 
 
 def anova_analysis(table: pd.core.groupby.GroupBy, var: str) -> HolderTuple:
