@@ -41,6 +41,8 @@ class AnalysisOptions():
     def __init__(self, parent: tk.Widget, *, label: str):
         self.frame = ttk.Frame(parent)
         self.label = ttk.Label(self.frame, text=label)
+
+        # create checkoboxes
         self.checkboxes: Dict[str, Tuple[tk.BooleanVar, ttk.Checkbutton]] = {}
         for name in ['species', 'sex', 'locality']:
             var = tk.BooleanVar()
@@ -49,14 +51,31 @@ class AnalysisOptions():
             self.checkboxes[name] = (var, ttk.Checkbutton(
                 self.frame, text=name.capitalize(), variable=var))
 
+        # set the invoke command for checkboxes
+        for _, chkbox in self.checkboxes.values():
+            chkbox.configure(command=self.set_minimal)
+
+        # grid the subwidgets
         self.label.grid(row=0, column=0)
         for i, (_, chkbox) in enumerate(self.checkboxes.values()):
             chkbox.grid(row=0, column=(1+i))
+
+        # delegate grid and destroy
         self.grid = self.frame.grid
         self.destroy = self.frame.destroy
 
     def get(self) -> List[str]:
+        """
+        returns list of choices
+        """
         return [name for name, (var, _) in self.checkboxes.items() if var.get()]
+
+    def set_minimal(self) -> None:
+        """
+        Sets species, if everything is unset
+        """
+        if all(not val.get() for (val, _) in self.checkboxes.values()):
+            self.checkboxes['species'][0].set(True)
 
 
 class AnalysesWidget():
