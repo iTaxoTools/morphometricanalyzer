@@ -77,9 +77,9 @@ def gui_main() -> None:
     num_analyses_lbl.grid(row=0, column=0)
     num_analyses_entr.grid(row=0, column=1)
     num_analyses_btn.grid(row=0, column=2)
-    set_num_analyses_frm.grid(row=2, column=0, sticky='w')
+    set_num_analyses_frm.grid(row=2, column=0, columnspan=3, sticky='w')
 
-    analyses_widget.grid(row=3, column=0, sticky='w')
+    analyses_widget.grid(row=3, column=0, columnspan=3, sticky='w')
 
     mainframe.grid(row=0, column=0, sticky="nsew")
 
