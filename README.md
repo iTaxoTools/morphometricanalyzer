@@ -18,3 +18,6 @@ which should be tab-separated data file with a header. To the modified table fil
 output file it writes the messages about the performed corrections and the results of statistical analyses. Currently,
 no statistical analyses is performed.
 
+## Dependencies
+* pandas
+* statsmodels
