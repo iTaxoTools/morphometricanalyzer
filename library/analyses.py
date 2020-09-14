@@ -2,8 +2,10 @@ from typing import Iterator, List, Set, TextIO
 
 import pandas as pd
 from statsmodels.stats.oneway import anova_oneway
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from statsmodels.stats.multicomp import pairwise_tukeyhsd, MultiComparison
 from statsmodels.stats.base import HolderTuple
+import os
+from contextlib import redirect_stdout
 
 
 def mean_and_others(col: pd.Series) -> str:
@@ -85,6 +87,24 @@ def anova_analysis(table: pd.core.groupby.GroupBy, var: str) -> HolderTuple:
     return anova_oneway(groups, use_var='equal', welch_correction=False)
 
 
+def tukeyhsd_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> None:
+    """
+    Write the results of Tukey post-hos tests into the output_file
+    """
+    groups = [",".join(group) for group in table[analysis].to_numpy()]
+    group_order = sorted(set(groups))
+    with open(os.devnull, mode="w") as devnull:
+        with redirect_stdout(devnull):
+            pvalues = [MultiComparison(table[var], groups, group_order=group_order).tukeyhsd(
+            ).pvalues for var in variables]
+    print("\tTukey Post-Hoc significance values", file=output_file)
+    print("\t".join(["Variable"] + list(variables)), file=output_file)
+    for i, (group1, group2) in enumerate((group1, group2) for group1 in group_order for group2 in group_order if group1 < group2):
+        print(f"{group1} - {group2}", *[format_pvalue(pvalue[i])
+                                        for pvalue in pvalues], sep='\t', file=output_file)
+    output_file.write("\n")
+
+
 def analyse(buf: TextIO, output_file: TextIO, variables: Set[str], analyses: List[List[str]]) -> None:
     """
     Performs statistical analyses on the table in buf and writes the results into output_file
@@ -108,14 +128,11 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
 
     analysis is the list of columns to group by
     """
+    tukeytable = table.copy()
     # groupby doesn't behave as needed if analysis is empty
     groupedtable = table.groupby(analysis) if analysis else table
 
     for table in mean_analysis(groupedtable, variables):
-        table.to_csv(output_file, float_format="%.3f", sep='\t')
-        output_file.write("\n")
-
-    for table in median_analysis(groupedtable, variables):
         table.to_csv(output_file, float_format="%.3f", sep='\t')
         output_file.write("\n")
 
@@ -127,3 +144,10 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
         print('\t'.join([var, str(anova.nobs_t), str(anova.df_num), format(
             anova.statistic, ".3f"), bonferroni_mark(anova.pvalue, bonferroni_corr)]), file=output_file)
     print(f"Note: Applying a Bonferroni correction to the {len(variables)} separate ANOVA analyses(one for each of {len(variables)} measurements) reduced the significance level of 0.05 to {bonferroni_corr}. P values below 0.05 but larger than the Bonferroni corrected significance level are marked with §. P values that stay significant after applying the Bonferroni correction(values < Bonferroni-corrected significance level) are marked with an asterisk.", file=output_file)
+    output_file.write("\n")
+
+    tukeyhsd_analysis(tukeytable, sorted(variables), analysis, output_file)
+
+    for table in median_analysis(groupedtable, variables):
+        table.to_csv(output_file, float_format="%.3f", sep='\t')
+        output_file.write("\n")
