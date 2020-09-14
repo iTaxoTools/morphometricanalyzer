@@ -4,6 +4,7 @@ import tkinter as tk
 import tkinter.messagebox
 import tkinter.ttk as ttk
 import io
+import warnings
 
 from library.gui_utils import *
 from library.mistake_corrector import *
@@ -38,8 +39,12 @@ def gui_main() -> None:
                     print(line, file=buf)
                 corrector.report(output_file)
                 buf.seek(0, 0)
-                analyse(buf, output_file,
-                        corrector.header_fixer.variables, analyses_widget.get())
+                with warnings.catch_warnings(record=True) as warns:
+                    analyse(buf, output_file,
+                            corrector.header_fixer.variables, analyses_widget.get())
+                    for w in warns:
+                        tk.messagebox.showwarning("Warning", str(w.message))
+                    tk.messagebox.showinfo("Done", "All analyses are complete")
         except ValueError as ex:
             tk.messagebox.showerror("Error", str(ex))
         except FileNotFoundError as ex:
@@ -95,8 +100,11 @@ def main() -> None:
             print(line)
         corrector.report(sys.stderr)
         buf.seek(0, 0)
-        analyse(buf, sys.stderr,
-                corrector.header_fixer.variables, [['species', 'sex']])
+        with warnings.catch_warnings(record=True) as warns:
+            analyse(buf, sys.stderr,
+                    corrector.header_fixer.variables, [['species', 'sex']])
+            for w in warns:
+                print(w.message, file=sys.stderr)
     else:
         gui_main()
 
