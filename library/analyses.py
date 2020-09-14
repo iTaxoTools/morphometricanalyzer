@@ -114,3 +114,4 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
         anova = anova_analysis(groupedtable, var)
         print('\t'.join([var, str(anova.nobs_t), str(anova.df_num), format(
             anova.statistic, ".3f"), bonferroni_mark(anova.pvalue, bonferroni_corr)]), file=output_file)
+    print(f"Note: Applying a Bonferroni correction to the {len(variables)} separate ANOVA analyses(one for each of {len(variables)} measurements) reduced the significance level of 0.05 to {bonferroni_corr}. P values below 0.05 but larger than the Bonferroni corrected significance level are marked with §. P values that stay significant after applying the Bonferroni correction(values < Bonferroni-corrected significance level) are marked with an asterisk.", file=output_file)
