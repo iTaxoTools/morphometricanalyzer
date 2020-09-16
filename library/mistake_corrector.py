@@ -110,8 +110,8 @@ class HeaderFixer():
         # metadata fields names' corrections
         if self.field_names_corrections:
             print("Changes or corrections have been applied in the title of one or several metadata columns:",
-                  *(", ".join([f"{given_name} was changed to {corrected_name}" for given_name,
-                               corrected_name in self.field_names_corrections])),
+                  ", ".join([f"{given_name} was changed to {corrected_name}" for given_name,
+                             corrected_name in self.field_names_corrections]),
                   file=output_file)
         if not self.metafields_ordered:
             print("Metadata columns are expected in the order specimenid, species, sex, locality. In the input file the order of these columns appears to be different. The program will proceed with the analyses, but please check if there may be a confusion affecting the metadata.", sep='', file=output_file)
