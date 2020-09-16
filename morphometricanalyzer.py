@@ -38,6 +38,7 @@ def gui_main() -> None:
                     print(line, file=table_file)
                     print(line, file=buf)
                 corrector.report(output_file)
+                output_file.write("\n\n\n")
                 buf.seek(0, 0)
                 with warnings.catch_warnings(record=True) as warns:
                     analyse(buf, output_file,
@@ -99,6 +100,7 @@ def main() -> None:
             print(line, file=buf)
             print(line)
         corrector.report(sys.stderr)
+        sys.stderr.write("\n\n\n")
         buf.seek(0, 0)
         with warnings.catch_warnings(record=True) as warns:
             analyse(buf, sys.stderr,
