@@ -133,7 +133,8 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
     groupedtable = table.groupby(analysis) if analysis else table
 
     for table in mean_analysis(groupedtable, variables):
-        table.to_csv(output_file, float_format="%.3f", sep='\t')
+        table.to_csv(output_file, float_format="%.3f",
+                     sep='\t', line_terminator='\n')
         output_file.write("\n")
 
     bonferroni_corr = 0.05 / len(variables)
@@ -149,5 +150,6 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
     tukeyhsd_analysis(tukeytable, sorted(variables), analysis, output_file)
 
     for table in median_analysis(groupedtable, variables):
-        table.to_csv(output_file, float_format="%.3f", sep='\t')
+        table.to_csv(output_file, float_format="%.3f",
+                     sep='\t', line_terminator='\n')
         output_file.write("\n")
