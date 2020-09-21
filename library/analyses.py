@@ -128,15 +128,18 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
 
     analysis is the list of columns to group by
     """
+    # without this something modifies the table
     tukeytable = table.copy()
     # groupby doesn't behave as needed if analysis is empty
     groupedtable = table.groupby(analysis) if analysis else table
 
+    print("1. Mean Analysis", file=output_file)
     for table in mean_analysis(groupedtable, variables):
         table.to_csv(output_file, float_format="%.3f",
                      sep='\t', line_terminator='\n')
         output_file.write("\n")
 
+    print("2. Simple ANOVA", file=output_file)
     bonferroni_corr = 0.05 / len(variables)
     print('\t'.join(["Variable", "N valid cases", "Degrees of Freedom",
                      "F-value", "P (Significance)"]), file=output_file)
@@ -149,6 +152,7 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
 
     tukeyhsd_analysis(tukeytable, sorted(variables), analysis, output_file)
 
+    print("4. Median Analysis", file=output_file)
     for table in median_analysis(groupedtable, variables):
         table.to_csv(output_file, float_format="%.3f",
                      sep='\t', line_terminator='\n')
