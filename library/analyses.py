@@ -36,7 +36,7 @@ def median_and_others(col: pd.Series) -> str:
         return f"{col.median():.3f}, {col.quantile(0.75):.3f} - {col.quantile(0.25):.3f} ({col.min():.3f} - {col.max():.3f}), N = {num}"
 
 
-def mean_analysis(table: pd.core.groupby.GroupBy, variables: Set[str]) -> Iterator[pd.DataFrame]:
+def mean_analysis(table: pd.core.groupby.GroupBy, variables: List[str]) -> Iterator[pd.DataFrame]:
     """
     Returns two tables, one with means and another with means and other values
     """
@@ -49,7 +49,7 @@ def mean_analysis(table: pd.core.groupby.GroupBy, variables: Set[str]) -> Iterat
     yield table.aggregate(mean_and_others).rename(columns=meanvar_rename)
 
 
-def median_analysis(table: pd.core.groupby.GroupBy, variables: Set[str]) -> Iterator[pd.DataFrame]:
+def median_analysis(table: pd.core.groupby.GroupBy, variables: List[str]) -> Iterator[pd.DataFrame]:
     """
     Returns two tables, one with medians and another with medians and other values
     """
@@ -100,7 +100,7 @@ def tukeyhsd_analysis(table: pd.DataFrame, variables: List[str], analysis: List[
             pvalues = [MultiComparison(table[var], groups, group_order=group_order).tukeyhsd(
             ).pvalues for var in variables]
     print("\tTukey Post-Hoc significance values", file=output_file)
-    print("\t".join(["Variable"] + list(variables)), file=output_file)
+    print("\t".join(["Variable"] + variables), file=output_file)
     for i, (group1, group2) in enumerate((group1, group2) for group1 in group_order for group2 in group_order if group1 < group2):
         print(f"{group1} - {group2}", *[format_pvalue(pvalue[i])
                                         for pvalue in pvalues], sep='\t', file=output_file)
@@ -118,7 +118,7 @@ def analyse(buf: TextIO, output_file: TextIO, variables: Set[str], analyses: Lis
     table = pd.read_table(buf, usecols=(
         ['specimenid', 'species', 'sex', 'locality'] + list(variables)))
     for analysis in analyses:
-        do_analysis(table, variables, analysis, output_file)
+        do_analysis(table, sorted(variables), analysis, output_file)
         output_file.write("\n")
 
 
@@ -126,7 +126,7 @@ def bonferroni_note(count: int, corr: float) -> str:
     return f"Note: Applying a Bonferroni correction to the {count} separate ANOVA analyses(one for each of {count} measurements) reduced the significance level of 0.05 to {corr}. P values below 0.05 but larger than the Bonferroni corrected significance level are marked with §. P values that stay significant after applying the Bonferroni correction(values < Bonferroni-corrected significance level) are marked with an asterisk."
 
 
-def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], output_file: TextIO) -> None:
+def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> None:
     """
     Performs statistical analyses on the table and writes the results into output_file
 
@@ -156,14 +156,14 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
     print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
     output_file.write("\n")
 
-    tukeyhsd_analysis(tukeytable, sorted(variables), analysis, output_file)
+    tukeyhsd_analysis(tukeytable, variables, analysis, output_file)
 
     print("3. Student's t-test", file=output_file)
     print("\tStudent's t-test", file=output_file)
-    print('\t'.join(['Variable'] + sorted(variables)), file=output_file)
+    print('\t'.join(['Variable'] + variables), file=output_file)
     for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable, 2):
         statistics, pvalues = ttest_ind(group1_table[sorted(
-            variables)], group2_table[sorted(variables)], nan_policy='omit')
+            variables)], group2_table[variables], nan_policy='omit')
         row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
             ' - ' + (', '.join(group2_lbl)
                      if isinstance(group2_lbl, tuple) else group1_lbl)
