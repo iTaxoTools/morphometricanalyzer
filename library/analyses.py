@@ -4,8 +4,10 @@ import pandas as pd
 from statsmodels.stats.oneway import anova_oneway
 from statsmodels.stats.multicomp import pairwise_tukeyhsd, MultiComparison
 from statsmodels.stats.base import HolderTuple
+from scipy.stats import ttest_ind
 import os
 from contextlib import redirect_stdout
+import itertools
 
 
 def mean_and_others(col: pd.Series) -> str:
@@ -120,6 +122,10 @@ def analyse(buf: TextIO, output_file: TextIO, variables: Set[str], analyses: Lis
         output_file.write("\n")
 
 
+def bonferroni_note(count: int, corr: float) -> str:
+    return f"Note: Applying a Bonferroni correction to the {count} separate ANOVA analyses(one for each of {count} measurements) reduced the significance level of 0.05 to {corr}. P values below 0.05 but larger than the Bonferroni corrected significance level are marked with §. P values that stay significant after applying the Bonferroni correction(values < Bonferroni-corrected significance level) are marked with an asterisk."
+
+
 def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], output_file: TextIO) -> None:
     """
     Performs statistical analyses on the table and writes the results into output_file
@@ -132,6 +138,7 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
     tukeytable = table.copy()
     # groupby doesn't behave as needed if analysis is empty
     groupedtable = table.groupby(analysis) if analysis else table
+    bonferroni_corr = 0.05 / len(variables)
 
     print("1. Mean Analysis", file=output_file)
     for table in mean_analysis(groupedtable, variables):
@@ -140,17 +147,31 @@ def do_analysis(table: pd.DataFrame, variables: Set[str], analysis: List[str], o
         output_file.write("\n")
 
     print("2. Simple ANOVA", file=output_file)
-    bonferroni_corr = 0.05 / len(variables)
     print('\t'.join(["Variable", "N valid cases", "Degrees of Freedom",
                      "F-value", "P (Significance)"]), file=output_file)
     for var in variables:
         anova = anova_analysis(groupedtable, var)
         print('\t'.join([var, str(anova.nobs_t), str(anova.df_num), format(
             anova.statistic, ".3f"), bonferroni_mark(anova.pvalue, bonferroni_corr)]), file=output_file)
-    print(f"Note: Applying a Bonferroni correction to the {len(variables)} separate ANOVA analyses(one for each of {len(variables)} measurements) reduced the significance level of 0.05 to {bonferroni_corr}. P values below 0.05 but larger than the Bonferroni corrected significance level are marked with §. P values that stay significant after applying the Bonferroni correction(values < Bonferroni-corrected significance level) are marked with an asterisk.", file=output_file)
+    print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
     output_file.write("\n")
 
     tukeyhsd_analysis(tukeytable, sorted(variables), analysis, output_file)
+
+    print("3. Student's t-test", file=output_file)
+    print("\tStudent's t-test", file=output_file)
+    print('\t'.join(['Variable'] + sorted(variables)), file=output_file)
+    for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable, 2):
+        statistics, pvalues = ttest_ind(group1_table[sorted(
+            variables)], group2_table[sorted(variables)], nan_policy='omit')
+        row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
+            ' - ' + (', '.join(group2_lbl)
+                     if isinstance(group2_lbl, tuple) else group1_lbl)
+        row_content = '\t'.join(
+            f"t = {statistic:.3f}; P = {bonferroni_mark(pvalue, bonferroni_corr)}" for statistic, pvalue in zip(statistics, pvalues))
+        print(row_label, row_content, sep='\t', file=output_file)
+    print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+    output_file.write('\n')
 
     print("4. Median Analysis", file=output_file)
     for table in median_analysis(groupedtable, variables):
