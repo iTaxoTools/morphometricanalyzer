@@ -4,7 +4,7 @@ import pandas as pd
 from statsmodels.stats.oneway import anova_oneway
 from statsmodels.stats.multicomp import pairwise_tukeyhsd, MultiComparison
 from statsmodels.stats.base import HolderTuple
-from scipy.stats import ttest_ind, kruskal
+from scipy.stats import ttest_ind, kruskal, mannwhitneyu
 import os
 from contextlib import redirect_stdout
 import itertools
@@ -187,5 +187,31 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
             *(values for _, values in groupedtable[var]), nan_policy='omit')
         print(var, f"H() = {statistic:.3f}",
               f"p = {bonferroni_mark(pvalue, bonferroni_corr)}", sep='\t', file=output_file)
+    print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+    output_file.write('\n')
+
+    print("6. Mann-Whitney U tests")
+    full_table = []
+    significance_table = []
+    for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable, 2):
+        row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
+            ' - ' + (', '.join(group2_lbl)
+                     if isinstance(group2_lbl, tuple) else group1_lbl)
+        full_table.append(row_label)
+        significance_table.append(row_label)
+        for var in variables:
+            u_val, pvalue = mannwhitneyu(
+                group1_table[var], group2_table[var], alternative='two-sided')
+            full_table[-1] += f"\tU = {u_val:.3f}, P = {bonferroni_mark(pvalue, bonferroni_corr)}"
+            significance_table[-1] += f"\tP = {bonferroni_mark(pvalue, bonferroni_corr)}"
+    print("\tMann-Whitney U tests, full test statistics", file=output_file)
+    print("\t".join(["Variable"] + variables), file=output_file)
+    for row in full_table:
+        print(row, file=output_file)
+    output_file.write('\n')
+    print("\tMann-Whitney U tests, only significances (P)", file=output_file)
+    print("\t".join(["Variable"] + variables), file=output_file)
+    for row in significance_table:
+        print(row, file=output_file)
     print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
     output_file.write('\n')
