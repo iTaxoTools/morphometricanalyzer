@@ -4,7 +4,7 @@ import pandas as pd
 from statsmodels.stats.oneway import anova_oneway
 from statsmodels.stats.multicomp import pairwise_tukeyhsd, MultiComparison
 from statsmodels.stats.base import HolderTuple
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, kruskal
 import os
 from contextlib import redirect_stdout
 import itertools
@@ -178,3 +178,14 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
         table.to_csv(output_file, float_format="%.3f",
                      sep='\t', line_terminator='\n')
         output_file.write("\n")
+
+    print("5. Kruskal-Wallis ANOVA", file=output_file)
+    print("Variable", "N valid cases",
+          "P (significance)", sep='\t', file=output_file)
+    for var in variables:
+        statistic, pvalue = kruskal(
+            *(values for _, values in groupedtable[var]), nan_policy='omit')
+        print(var, f"H() = {statistic:.3f}",
+              f"p = {bonferroni_mark(pvalue, bonferroni_corr)}", sep='\t', file=output_file)
+    print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+    output_file.write('\n')
