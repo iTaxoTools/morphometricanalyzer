@@ -27,10 +27,8 @@ class HeaderFixer():
         self.make_unique_variable_names()
         if "remark" not in self.fields:
             self.fields.append("remark")
-        variables = set(self.fields) - set(HeaderFixer.required_fields)
-        variables.discard(None)
-        variables.discard("remark")
-        self.variables = cast(Set[str], variables)
+        self.variables: List[str] = [var for var in self.fields if var is not None and var !=
+                                     "remark" and var not in HeaderFixer.required_fields]
 
     def correct_metafield(self, correct_name: str, variants: Set[str]) -> None:
         """
@@ -164,7 +162,8 @@ class MistakeCorrector():
                   file=output_file)
         if self.invalid_content_count:
             print(f"A total of {self.invalid_content_count} cases with invalid content (not a number) were detected in the fields of one or several variables; this content has been deleted and in the analysis is treated as missing value.", file=output_file)
-        empty_columns = self.header_fixer.variables - self.vars_with_numbers
+        empty_columns = set(self.header_fixer.variables) - \
+            self.vars_with_numbers
         if empty_columns:
             for var in empty_columns:
                 print(

@@ -107,7 +107,7 @@ def tukeyhsd_analysis(table: pd.DataFrame, variables: List[str], analysis: List[
     output_file.write("\n")
 
 
-def analyse(buf: TextIO, output_file: TextIO, variables: Set[str], analyses: List[List[str]]) -> None:
+def analyse(buf: TextIO, output_file: TextIO, variables: List[str], analyses: List[List[str]]) -> None:
     """
     Performs statistical analyses on the table in buf and writes the results into output_file
 
@@ -116,9 +116,9 @@ def analyse(buf: TextIO, output_file: TextIO, variables: Set[str], analyses: Lis
     analyses is a list of lists, each of which describe which column to group by
     """
     table = pd.read_table(buf, usecols=(
-        ['specimenid', 'species', 'sex', 'locality'] + list(variables)))
+        ['specimenid', 'species', 'sex', 'locality'] + variables))
     for analysis in analyses:
-        do_analysis(table, sorted(variables), analysis, output_file)
+        do_analysis(table, variables, analysis, output_file)
         output_file.write("\n")
 
 
