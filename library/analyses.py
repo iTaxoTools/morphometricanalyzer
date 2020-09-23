@@ -135,16 +135,14 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     analysis is the list of columns to group by
     """
     # without this something modifies the table
-    tukeytable = table.copy()
-    backuptable = table.copy()
     # groupby doesn't behave as needed if analysis is empty
     groupedtable = table.groupby(analysis) if analysis else table
     bonferroni_corr = 0.05 / len(variables)
 
     print("1. Mean Analysis", file=output_file)
-    for table in mean_analysis(groupedtable, variables):
-        table.to_csv(output_file, float_format="%.3f",
-                     sep='\t', line_terminator='\n')
+    for result in mean_analysis(groupedtable, variables):
+        result.to_csv(output_file, float_format="%.3f",
+                      sep='\t', line_terminator='\n')
         output_file.write("\n")
 
     print("2. Simple ANOVA", file=output_file)
@@ -157,7 +155,7 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
     output_file.write("\n")
 
-    tukeyhsd_analysis(tukeytable, variables, analysis, output_file)
+    tukeyhsd_analysis(table, variables, analysis, output_file)
 
     print("3. Student's t-test", file=output_file)
     print("\tStudent's t-test", file=output_file)
@@ -175,9 +173,9 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     output_file.write('\n')
 
     print("4. Median Analysis", file=output_file)
-    for table in median_analysis(groupedtable, variables):
-        table.to_csv(output_file, float_format="%.3f",
-                     sep='\t', line_terminator='\n')
+    for result in median_analysis(groupedtable, variables):
+        result.to_csv(output_file, float_format="%.3f",
+                      sep='\t', line_terminator='\n')
         output_file.write("\n")
 
     print("5. Kruskal-Wallis ANOVA", file=output_file)
@@ -232,4 +230,4 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
                             cond in groupedtable[var].transform(is_outlier).items() if cond]
         if outlier_specimen:
             print(f"{var}:", ', '.join(
-                f"{specimenid} ({backuptable[var][specimenid]})" for specimenid in outlier_specimen), file=output_file)
+                f"{specimenid} ({table[var][specimenid]})" for specimenid in outlier_specimen), file=output_file)
