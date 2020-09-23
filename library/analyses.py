@@ -115,7 +115,7 @@ def analyse(buf: TextIO, output_file: TextIO, variables: List[str], analyses: Li
 
     analyses is a list of lists, each of which describe which column to group by
     """
-    table = pd.read_table(buf, usecols=(
+    table = pd.read_table(buf, index_col='specimenid', usecols=(
         ['specimenid', 'species', 'sex', 'locality'] + variables))
     for analysis in analyses:
         do_analysis(table, variables, analysis, output_file)
@@ -136,6 +136,7 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     """
     # without this something modifies the table
     tukeytable = table.copy()
+    backuptable = table.copy()
     # groupby doesn't behave as needed if analysis is empty
     groupedtable = table.groupby(analysis) if analysis else table
     bonferroni_corr = 0.05 / len(variables)
@@ -216,3 +217,19 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
         print(row, file=output_file)
     print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
     output_file.write('\n')
+
+    print("7. Outliers", file=output_file)
+    print("The following outlier values have been identified. These may simply indicate specimens with morphometric peculiarities, but could also be measurement or data transformation errors. Please check them carefully!", file=output_file)
+
+    def is_outlier(col: pd.Series) -> pd.Series:
+        q3 = col.quantile(0.75)
+        q1 = col.quantile(0.25)
+        iqr = q3 - q1
+        return (col > (q3 + 1.5 * iqr)).combine(col < (q1 - 1.5 * iqr), lambda x, y: x or y)
+
+    for var in variables:
+        outlier_specimen = [specimenid for specimenid,
+                            cond in groupedtable[var].transform(is_outlier).items() if cond]
+        if outlier_specimen:
+            print(f"{var}:", ', '.join(
+                f"{specimenid} ({backuptable[var][specimenid]})" for specimenid in outlier_specimen), file=output_file)
