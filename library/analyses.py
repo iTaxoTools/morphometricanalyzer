@@ -190,7 +190,8 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
     output_file.write('\n')
 
-    print("6. Mann-Whitney U tests")
+    print("6. Mann-Whitney U tests", file=output_file)
+    print("U tests were implemented with continuity correction and two-tailed significances", file=output_file)
     full_table = []
     significance_table = []
     for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable, 2):
