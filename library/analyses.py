@@ -272,3 +272,18 @@ class Analyzer:
             remarked_table.to_csv(
                 self.table_file, sep='\t', line_terminator='\n')
             self.table_file.write('\n')
+
+            ref_var = self.table[self.variables[0]]
+            size_corr_renames = {
+                var: f"ratio_{var}_{self.variables[0]}" for var in self.variables[1:]}
+            size_corr_table = self.table.drop(columns=self.variables[0]).rename(
+                columns=size_corr_renames)
+            size_corr_variables = list(size_corr_renames.values())
+            for var in size_corr_variables:
+                size_corr_table[var] /= ref_var
+            self.output_file.write("Size corrected analysis")
+
+            size_corr_table_remarked = do_analysis(
+                size_corr_table, size_corr_variables, analysis, self.output_file)
+            size_corr_table_remarked.to_csv(
+                self.table_file, sep='\t', line_terminator='\n')
