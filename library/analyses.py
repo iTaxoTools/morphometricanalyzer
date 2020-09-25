@@ -1,6 +1,7 @@
-from typing import Iterator, List, Set, TextIO
+from typing import Iterator, List, Set, TextIO, Dict
 
 import pandas as pd
+import numpy as np
 from statsmodels.stats.oneway import anova_oneway
 from statsmodels.stats.multicomp import pairwise_tukeyhsd, MultiComparison
 from statsmodels.stats.base import HolderTuple
@@ -126,13 +127,15 @@ def bonferroni_note(count: int, corr: float) -> str:
     return f"Note: Applying a Bonferroni correction to the {count} separate ANOVA analyses(one for each of {count} measurements) reduced the significance level of 0.05 to {corr}. P values below 0.05 but larger than the Bonferroni corrected significance level are marked with §. P values that stay significant after applying the Bonferroni correction(values < Bonferroni-corrected significance level) are marked with an asterisk."
 
 
-def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> None:
+def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> pd.DataFrame:
     """
     Performs statistical analyses on the table and writes the results into output_file
 
     variables contains the column names that contains the variables to analyse
 
     analysis is the list of columns to group by
+
+    Returns a copy of the table with remarks
     """
     # without this something modifies the table
     # groupby doesn't behave as needed if analysis is empty
@@ -225,9 +228,47 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
         iqr = q3 - q1
         return (col > (q3 + 1.5 * iqr)).combine(col < (q1 - 1.5 * iqr), lambda x, y: x or y)
 
+    specimen_with_outliers: Dict[str, List[str]] = {}
     for var in variables:
         outlier_specimen = [specimenid for specimenid,
                             cond in groupedtable[var].transform(is_outlier).items() if cond]
         if outlier_specimen:
             print(f"{var}:", ', '.join(
                 f"{specimenid} ({table[var][specimenid]})" for specimenid in outlier_specimen), file=output_file)
+
+            for specimenid in outlier_specimen:
+                specimen_with_outliers[specimenid] = specimen_with_outliers.setdefault(
+                    specimenid, []) + [var]
+    if specimen_with_outliers:
+        for specimenid, outlier_vars in specimen_with_outliers.items():
+            remark: str = str(table['remark'][specimenid])
+            table['remark'][specimenid] = (remark + "; " if remark else "") + \
+                f"Row contains outlier values ({', '.join(outlier_vars)})"
+    return table
+
+
+class Analyzer:
+    """
+    This class contains all the parameters for analysis
+    """
+
+    def __init__(self, buf: TextIO, variables: List[str], analyses: List[List[str]], output_file: TextIO, table_file: TextIO):
+        self.table = pd.read_table(buf, index_col='specimenid', usecols=(
+            ['specimenid', 'species', 'sex', 'locality'] + variables + ['remark']), dtype={'remark': 'string'})
+        self.table['remark'].fillna("", inplace=True)
+        self.output_file = output_file
+        self.table_file = table_file
+        self.analyses = analyses
+        self.variables = variables
+
+    def analyse(self) -> None:
+        """
+        Performs statistical analyses on self.table and writes the results into output_file
+        """
+        for analysis in self.analyses:
+            remarked_table = do_analysis(
+                self.table.copy(), self.variables, analysis, self.output_file)
+            self.output_file.write("\n")
+            remarked_table.to_csv(
+                self.table_file, sep='\t', line_terminator='\n')
+            self.table_file.write('\n')

@@ -8,7 +8,7 @@ import warnings
 
 from library.gui_utils import *
 from library.mistake_corrector import *
-from library.analyses import analyse
+from library.analyses import Analyzer
 
 
 def gui_main() -> None:
@@ -35,14 +35,14 @@ def gui_main() -> None:
                 corrector = MistakeCorrector(input_file)
                 buf = io.StringIO()
                 for line in corrector:
-                    print(line, file=table_file)
                     print(line, file=buf)
                 corrector.report(output_file)
                 output_file.write("\n\n\n")
                 buf.seek(0, 0)
+                analyzer = Analyzer(buf, corrector.header_fixer.variables, [
+                    ['species', 'sex']], output_file, table_file)
                 with warnings.catch_warnings(record=True) as warns:
-                    analyse(buf, output_file,
-                            corrector.header_fixer.variables, analyses_widget.get())
+                    analyzer.analyse()
                     for w in warns:
                         tk.messagebox.showwarning("Warning", str(w.message))
                     tk.messagebox.showinfo("Done", "All analyses are complete")
@@ -98,13 +98,13 @@ def main() -> None:
         buf = io.StringIO()
         for line in corrector:
             print(line, file=buf)
-            print(line)
         corrector.report(sys.stderr)
         sys.stderr.write("\n\n\n")
         buf.seek(0, 0)
+        analyzer = Analyzer(buf, corrector.header_fixer.variables, [
+                            ['species', 'sex']], sys.stderr, sys.stdout)
         with warnings.catch_warnings(record=True) as warns:
-            analyse(buf, sys.stderr,
-                    corrector.header_fixer.variables, [['species', 'sex']])
+            analyzer.analyse()
             for w in warns:
                 print(w.message, file=sys.stderr)
     else:
