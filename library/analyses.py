@@ -1,4 +1,4 @@
-from typing import Iterator, List, Set, TextIO, Dict
+from typing import Iterator, List, Set, TextIO, Dict, Optional
 
 import pandas as pd
 import numpy as np
@@ -260,6 +260,17 @@ class Analyzer:
         self.table_file = table_file
         self.analyses = analyses
         self.variables = variables
+        self.size_var: Optional[str] = None
+
+    def set_size_var(self, value: Optional[str] = None) -> None:
+        if value:
+            if value in self.variables:
+                self.size_var = value
+            else:
+                raise ValueError(
+                    f"Variable \"{value}\" is not present in the data")
+        else:
+            self.size_var = None
 
     def analyse(self) -> None:
         """
@@ -273,14 +284,16 @@ class Analyzer:
                 self.table_file, sep='\t', line_terminator='\n')
             self.table_file.write('\n')
 
-            ref_var = self.table[self.variables[0]]
+            size_var = self.size_var if self.size_var else self.variables[0]
+
+            size_val = self.table[size_var]
             size_corr_renames = {
-                var: f"ratio_{var}_{self.variables[0]}" for var in self.variables[1:]}
-            size_corr_table = self.table.drop(columns=self.variables[0]).rename(
+                var: f"ratio_{var}_{size_var}" for var in self.variables if var != size_var}
+            size_corr_table = self.table.drop(columns=size_var).rename(
                 columns=size_corr_renames)
             size_corr_variables = list(size_corr_renames.values())
             for var in size_corr_variables:
-                size_corr_table[var] /= ref_var
+                size_corr_table[var] /= size_val
             self.output_file.write("Size corrected analysis")
 
             size_corr_table_remarked = do_analysis(
