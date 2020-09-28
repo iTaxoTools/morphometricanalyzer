@@ -25,6 +25,9 @@ def gui_main() -> None:
 
     analyses_widget = AnalysesWidget(mainframe)
 
+    size_var_chooser = LabeledEntry(
+        mainframe, label="Variable to be used for size standardization")
+
     def process_table() -> None:
         input_file = input_chooser.file_var.get()
         output_file = output_chooser.file_var.get()
@@ -41,6 +44,7 @@ def gui_main() -> None:
                 buf.seek(0, 0)
                 analyzer = Analyzer(buf, corrector.header_fixer.variables, [
                     ['species', 'sex']], output_file, table_file)
+                analyzer.set_size_var(size_var_chooser.var.get().casefold())
                 with warnings.catch_warnings(record=True) as warns:
                     analyzer.analyse()
                     for w in warns:
@@ -80,12 +84,13 @@ def gui_main() -> None:
     table_chooser.grid(row=0, column=2, sticky="nsew")
     process_btn.grid(row=1, column=1)
 
+    size_var_chooser.grid(row=2, column=0, columnspan=3, sticky='w')
     num_analyses_lbl.grid(row=0, column=0)
     num_analyses_entr.grid(row=0, column=1)
     num_analyses_btn.grid(row=0, column=2)
-    set_num_analyses_frm.grid(row=2, column=0, columnspan=3, sticky='w')
+    set_num_analyses_frm.grid(row=3, column=0, columnspan=3, sticky='w')
 
-    analyses_widget.grid(row=3, column=0, columnspan=3, sticky='w')
+    analyses_widget.grid(row=4, column=0, columnspan=3, sticky='w')
 
     mainframe.grid(row=0, column=0, sticky="nsew")
 

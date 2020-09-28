@@ -108,3 +108,19 @@ class AnalysesWidget():
 
     def get(self) -> List[List[str]]:
         return [child.get() for child in self.children]
+
+
+class LabeledEntry():
+    """
+    Group of a label, entry and a string variable
+    """
+
+    def __init__(self, parent: tk.Widget, *, label: str):
+        self.frame = tk.Frame(parent)
+        self.label = tk.Label(self.frame, text=label)
+        self.var = tk.StringVar()
+        self.entry = tk.Entry(self.frame, textvariable=self.var)
+        self.frame.columnconfigure(1, weight=1)
+        self.label.grid(column=0, row=0)
+        self.entry.grid(column=1, row=0)
+        self.grid = self.frame.grid
