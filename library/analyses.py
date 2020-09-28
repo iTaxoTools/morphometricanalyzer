@@ -6,9 +6,11 @@ from statsmodels.stats.oneway import anova_oneway
 from statsmodels.stats.multicomp import pairwise_tukeyhsd, MultiComparison
 from statsmodels.stats.base import HolderTuple
 from scipy.stats import ttest_ind, kruskal, mannwhitneyu
+from scipy.spatial.distance import pdist, squareform
 import os
 from contextlib import redirect_stdout
 import itertools
+import numpy.ma as ma
 
 
 def mean_and_others(col: pd.Series) -> str:
@@ -125,6 +127,10 @@ def analyse(buf: TextIO, output_file: TextIO, variables: List[str], analyses: Li
 
 def bonferroni_note(count: int, corr: float) -> str:
     return f"Note: Applying a Bonferroni correction to the {count} separate ANOVA analyses(one for each of {count} measurements) reduced the significance level of 0.05 to {format_pvalue(corr)}. P values below 0.05 but larger than the Bonferroni corrected significance level are marked with §. P values that stay significant after applying the Bonferroni correction(values < Bonferroni-corrected significance level) are marked with an asterisk."
+
+
+def blank_upper_triangle(table: np.array) -> np.array:
+    return ma.MaskedArray(table, mask=~np.logical_not(np.triu(table)))
 
 
 def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> pd.DataFrame:
@@ -244,6 +250,27 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
             remark: str = str(table['remark'][specimenid])
             table['remark'][specimenid] = (remark + "; " if remark else "") + \
                 f"Row contains outlier values ({', '.join(outlier_vars)})"
+
+    table_with_species = table.rename(
+        index=(lambda specimen: table['species'][specimen].replace(' ', '_')+'_'+specimen))
+    print("8. Euclidean distance", file=output_file)
+    eucl_dist = pd.DataFrame(
+        blank_upper_triangle(squareform(pdist(table_with_species[variables]))),
+        index=table_with_species.index,
+        columns=table_with_species.index
+    )
+    eucl_dist.to_csv(output_file, sep="\t",
+                     float_format="%.2f", line_terminator="\n")
+
+    print("9. Cosine distance", file=output_file)
+    eucl_dist = pd.DataFrame(
+        blank_upper_triangle(squareform(
+            pdist(table_with_species[variables], metric='cosine'))),
+        index=table_with_species.index,
+        columns=table_with_species.index
+    )
+    eucl_dist.to_csv(output_file, sep="\t",
+                     float_format="%.2f", line_terminator="\n")
     return table
 
 
