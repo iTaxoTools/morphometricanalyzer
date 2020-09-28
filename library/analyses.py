@@ -294,7 +294,7 @@ class Analyzer:
             size_corr_variables = list(size_corr_renames.values())
             for var in size_corr_variables:
                 size_corr_table[var] /= size_val
-            self.output_file.write("Size corrected analysis")
+            self.output_file.write("Size corrected analysis\n")
 
             size_corr_table_remarked = do_analysis(
                 size_corr_table, size_corr_variables, analysis, self.output_file)
