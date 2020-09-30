@@ -11,6 +11,7 @@ import os
 from contextlib import redirect_stdout
 import itertools
 import numpy.ma as ma
+from sklearn.decomposition import PCA
 
 
 def mean_and_others(col: pd.Series) -> str:
@@ -253,6 +254,7 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
 
     table_with_species = table.rename(
         index=(lambda specimen: table['species'][specimen].replace(' ', '_')+'_'+specimen))
+    output_file.write('\n')
     print("8. Euclidean distance", file=output_file)
     eucl_dist = pd.DataFrame(
         blank_upper_triangle(squareform(pdist(table_with_species[variables]))),
@@ -262,6 +264,7 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     eucl_dist.to_csv(output_file, sep="\t",
                      float_format="%.2f", line_terminator="\n")
 
+    output_file.write('\n')
     print("9. Cosine distance", file=output_file)
     eucl_dist = pd.DataFrame(
         blank_upper_triangle(squareform(
@@ -271,7 +274,36 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     )
     eucl_dist.to_csv(output_file, sep="\t",
                      float_format="%.2f", line_terminator="\n")
+    output_file.write('\n')
     return table
+
+
+def write_pca(table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
+    RETAINED_VARIANCE = 0.75
+    MAX_PC = 6
+    pca = PCA(RETAINED_VARIANCE)
+    principal_components = pca.fit_transform(table[variables])
+    pc_columns = [f"PC{i+1}" for i in range(0, pca.n_components_)]
+    principalDf = pd.DataFrame(
+        principal_components,
+        index=table.index,
+        columns=pc_columns
+    )
+    pd.concat([table['species'], principalDf], axis=1).to_csv(
+        output_file, sep="\t", float_format="%.2f", line_terminator="\n",
+        columns=['species'] + pc_columns[:MAX_PC])
+    loading = pca.components_.T * np.sqrt(pca.explained_variance_)
+    loading_matrix = pd.DataFrame(
+        loading,
+        index=variables,
+        columns=pc_columns
+    )
+    loading_matrix.to_csv(
+        output_file, sep="\t", float_format="%.3f", line_terminator="\n",
+        columns=pc_columns[:MAX_PC])
+    print('Explained variance',
+          *[f"{ratio * 100:.1f}%" for ratio in pca.explained_variance_ratio_],
+          sep='\t', file=output_file)
 
 
 class Analyzer:
@@ -327,3 +359,7 @@ class Analyzer:
                 size_corr_table, size_corr_variables, analysis, self.output_file)
             size_corr_table_remarked.to_csv(
                 self.table_file, sep='\t', line_terminator='\n')
+
+            print("Principal component analysis.", file=self.output_file)
+
+            write_pca(size_corr_table, size_corr_variables, self.output_file)
