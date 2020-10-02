@@ -12,6 +12,7 @@ from contextlib import redirect_stdout
 import itertools
 import numpy.ma as ma
 from sklearn.decomposition import PCA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 
 def mean_and_others(col: pd.Series) -> str:
@@ -304,6 +305,29 @@ def write_pca(table: pd.DataFrame, variables: List[str], output_file: TextIO) ->
     print('Explained variance',
           *[f"{ratio * 100:.1f}%" for ratio in pca.explained_variance_ratio_],
           sep='\t', file=output_file)
+    output_file.write('\n')
+
+
+def write_lda(table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
+    clf = LinearDiscriminantAnalysis()
+    lda_table = clf.fit_transform(table[variables], table['species'])
+    ld_num = lda_table.shape[1]
+    ld_columns = [f"LD{i+1}" for i in range(0, ld_num)]
+    principalDf = pd.DataFrame(
+        lda_table,
+        index=table.index,
+        columns=ld_columns
+    )
+    prob_classes = clf.predict_proba(table[variables])
+    prob_Df = pd.DataFrame(
+        prob_classes,
+        index=table.index,
+        columns=[f"Prob {species}" for species in clf.classes_]
+    )
+    pd.concat([table['species'], principalDf, prob_Df], axis=1).to_csv(
+        output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+    )
+    output_file.write('\n')
 
 
 class Analyzer:
@@ -363,3 +387,7 @@ class Analyzer:
             print("Principal component analysis.", file=self.output_file)
 
             write_pca(size_corr_table, size_corr_variables, self.output_file)
+
+            print("Linear discriminant analysis.", file=self.output_file)
+
+            write_lda(size_corr_table, size_corr_variables, self.output_file)
