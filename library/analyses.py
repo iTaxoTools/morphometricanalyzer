@@ -1,18 +1,18 @@
-from typing import Iterator, List, Set, TextIO, Dict, Optional
-
-import pandas as pd
-import numpy as np
-from statsmodels.stats.oneway import anova_oneway
-from statsmodels.stats.multicomp import pairwise_tukeyhsd, MultiComparison
-from statsmodels.stats.base import HolderTuple
-from scipy.stats import ttest_ind, kruskal, mannwhitneyu
-from scipy.spatial.distance import pdist, squareform
+import itertools
 import os
 from contextlib import redirect_stdout
-import itertools
+from typing import Dict, Iterator, List, Optional, Set, TextIO, Tuple
+
+import numpy as np
 import numpy.ma as ma
+import pandas as pd
+from scipy.spatial.distance import pdist, squareform
+from scipy.stats import kruskal, mannwhitneyu, ttest_ind
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from statsmodels.stats.base import HolderTuple
+from statsmodels.stats.multicomp import MultiComparison, pairwise_tukeyhsd
+from statsmodels.stats.oneway import anova_oneway
 
 
 def mean_and_others(col: pd.Series) -> str:
@@ -308,6 +308,44 @@ def write_pca(table: pd.DataFrame, variables: List[str], output_file: TextIO) ->
     output_file.write('\n')
 
 
+def order_species_ranges(table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
+    table = table.groupby('species').agg(lambda arr: (arr.min(), arr.max()))
+    description: Dict[str, Dict[Tuple[str, str], List[str]]] = {
+        species: {} for species in table.index}
+    for species1 in table.index:
+        for var in variables:
+            for species2 in table.index:
+                range1 = table[var][species1]
+                range2 = table[var][species2]
+                if range1[1] < range2[0]:
+                    description[species1].setdefault(
+                        ("smaller", var), []).append(species2)
+                if range1[0] > range2[1]:
+                    description[species1].setdefault(
+                        ("larger", var), []).append(species2)
+
+    def join_and(parts: List[str]) -> str:
+        if len(parts) <= 1:
+            return "".join(parts)
+        else:
+            return ", ".join(parts[:-1]) + " and " + parts[-1]
+
+    def print_vs(species1: str, species2: str, var: str) -> str:
+        range1 = table[var][species1]
+        range2 = table[var][species2]
+        return f"({range1[0]:.2f}-{range1[1]:.2f} vs. {range2[0]:.2f}-{range2[1]:.2f})"
+
+    def list_species(species1: str, var: str, other: List[str]) -> str:
+        return join_and([f"{species} {print_vs(species1, species, var)}" for species in other])
+
+    for species, relations in description.items():
+        print(species, file=output_file)
+        output_file.write(f"{species} differs ")
+        output_file.write(join_and([f"by a {relation} {var} from {list_species(species, var, other_species)}"
+                                    for (relation, var), other_species in relations.items()]))
+        output_file.write(".\n\n")
+
+
 def write_lda(table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
     clf = LinearDiscriminantAnalysis()
     lda_table = clf.fit_transform(table[variables], table['species'])
@@ -380,14 +418,21 @@ class Analyzer:
             self.output_file.write("Size corrected analysis\n")
 
             size_corr_table_remarked = do_analysis(
-                size_corr_table, size_corr_variables, analysis, self.output_file)
+                size_corr_table.copy(), size_corr_variables, analysis, self.output_file)
             size_corr_table_remarked.to_csv(
                 self.table_file, sep='\t', line_terminator='\n')
 
-            print("Principal component analysis.", file=self.output_file)
+        print("Principal component analysis.", file=self.output_file)
 
-            write_pca(size_corr_table, size_corr_variables, self.output_file)
+        write_pca(size_corr_table, size_corr_variables, self.output_file)
 
-            print("Linear discriminant analysis.", file=self.output_file)
+        print("Linear discriminant analysis.", file=self.output_file)
 
-            write_lda(size_corr_table, size_corr_variables, self.output_file)
+        write_lda(size_corr_table, size_corr_variables, self.output_file)
+
+        print("Diagnoses.", file=self.output_file)
+
+        size_corr_table.insert(loc=3, column=size_var,
+                               value=self.table[size_var])
+        order_species_ranges(
+            size_corr_table, [size_var] + size_corr_variables, self.output_file)
