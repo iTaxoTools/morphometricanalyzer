@@ -13,6 +13,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from statsmodels.stats.base import HolderTuple
 from statsmodels.stats.multicomp import MultiComparison, pairwise_tukeyhsd
 from statsmodels.stats.oneway import anova_oneway
+import warnings
 
 
 def mean_and_others(col: pd.Series) -> str:
@@ -160,7 +161,13 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     print('\t'.join(["Variable", "N valid cases", "Degrees of Freedom",
                      "F-value", "P (Significance)"]), file=output_file)
     for var in variables:
-        anova = anova_analysis(groupedtable, var)
+        try:
+            anova = anova_analysis(groupedtable, var)
+        except FloatingPointError:
+            print("Error: Invalid data for simple ANOVA", file=output_file)
+            warnings.warn("Floating point error in simple ANOVA",
+                          RuntimeWarning)
+            break
         print('\t'.join([var, str(anova.nobs_t), str(anova.df_num), format(
             anova.statistic, ".3f"), bonferroni_mark(anova.pvalue, bonferroni_corr)]), file=output_file)
     print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
@@ -172,8 +179,14 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     print("\tStudent's t-test", file=output_file)
     print('\t'.join(['Variable'] + variables), file=output_file)
     for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable, 2):
-        statistics, pvalues = ttest_ind(group1_table[sorted(
-            variables)], group2_table[variables], nan_policy='omit')
+        try:
+            statistics, pvalues = ttest_ind(group1_table[sorted(
+                variables)], group2_table[variables], nan_policy='omit')
+        except FloatingPointError:
+            print("Error: Invalid data for the Student's t-test", file=output_file)
+            warnings.warn(
+                "Floating point error in the Student's t-test", category=RuntimeWarning)
+            break
         row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
             ' - ' + (', '.join(group2_lbl)
                      if isinstance(group2_lbl, tuple) else group1_lbl)
@@ -348,8 +361,13 @@ def order_species_ranges(table: pd.DataFrame, variables: List[str], output_file:
 
 def write_lda(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> None:
     clf = LinearDiscriminantAnalysis()
-    lda_table = clf.fit_transform(
-        table[variables], table[analysis].agg(lambda l: '-'.join(l), axis=1))
+    try:
+        lda_table = clf.fit_transform(
+            table[variables], table[analysis].agg(lambda l: '-'.join(l), axis=1))
+    except FloatingPointError:
+        print("Error: Invalid data for Linear Discriminant Analysis", file=output_file)
+        warnings.warn("Floating point error in Linear Discriminant Analysis")
+        return
     ld_num = lda_table.shape[1]
     ld_columns = [f"LD{i+1}" for i in range(0, ld_num)]
     principalDf = pd.DataFrame(
@@ -357,15 +375,23 @@ def write_lda(table: pd.DataFrame, variables: List[str], analysis: List[str], ou
         index=table.index,
         columns=ld_columns
     )
-    prob_classes = clf.predict_proba(table[variables])
-    prob_Df = pd.DataFrame(
-        prob_classes,
-        index=table.index,
-        columns=[f"Prob {group}" for group in clf.classes_]
-    )
-    pd.concat([table[analysis], principalDf, prob_Df], axis=1).to_csv(
-        output_file, sep="\t", float_format="%.2f", line_terminator="\n"
-    )
+    try:
+        prob_classes = clf.predict_proba(table[variables])
+    except FloatingPointError:
+        warnings.warn(
+            "Floating point error in Linear Discriminant Analysis probability prediction", category=RuntimeWarning)
+        pd.concat([table[analysis], principalDf], axis=1).to_csv(
+            output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+        )
+    else:
+        prob_Df = pd.DataFrame(
+            prob_classes,
+            index=table.index,
+            columns=[f"Prob {group}" for group in clf.classes_]
+        )
+        pd.concat([table[analysis], principalDf, prob_Df], axis=1).to_csv(
+            output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+        )
     output_file.write('\n')
 
 
@@ -398,6 +424,7 @@ class Analyzer:
         """
         Performs statistical analyses on self.table and writes the results into output_file
         """
+        np.seterr('raise')
         size_var = self.size_var if self.size_var else self.variables[0]
 
         size_val = self.table[size_var]
