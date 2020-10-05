@@ -47,8 +47,8 @@ def gui_main() -> None:
                 analyzer.set_size_var(size_var_chooser.var.get().casefold())
                 with warnings.catch_warnings(record=True) as warns:
                     analyzer.analyse()
-                    for w in warns:
-                        tk.messagebox.showwarning("Warning", str(w.message))
+                    tk.messagebox.showwarning("Warning", '\n\n'.join(
+                        set(str(w.message) for w in warns)))
                     tk.messagebox.showinfo("Done", "All analyses are complete")
         except ValueError as ex:
             tk.messagebox.showerror("Error", str(ex))
@@ -110,8 +110,8 @@ def main() -> None:
                             ['species', 'sex']], sys.stderr, sys.stdout)
         with warnings.catch_warnings(record=True) as warns:
             analyzer.analyse()
-            for w in warns:
-                print(w.message, file=sys.stderr)
+            for message in set(str(w.message) for w in warns):
+                print(message, file=sys.stderr)
     else:
         gui_main()
 
