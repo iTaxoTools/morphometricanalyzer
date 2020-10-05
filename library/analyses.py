@@ -346,9 +346,10 @@ def order_species_ranges(table: pd.DataFrame, variables: List[str], output_file:
         output_file.write(".\n\n")
 
 
-def write_lda(table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
+def write_lda(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> None:
     clf = LinearDiscriminantAnalysis()
-    lda_table = clf.fit_transform(table[variables], table['species'])
+    lda_table = clf.fit_transform(
+        table[variables], table[analysis].agg(lambda l: '-'.join(l), axis=1))
     ld_num = lda_table.shape[1]
     ld_columns = [f"LD{i+1}" for i in range(0, ld_num)]
     principalDf = pd.DataFrame(
@@ -360,9 +361,9 @@ def write_lda(table: pd.DataFrame, variables: List[str], output_file: TextIO) ->
     prob_Df = pd.DataFrame(
         prob_classes,
         index=table.index,
-        columns=[f"Prob {species}" for species in clf.classes_]
+        columns=[f"Prob {group}" for group in clf.classes_]
     )
-    pd.concat([table['species'], principalDf, prob_Df], axis=1).to_csv(
+    pd.concat([table[analysis], principalDf, prob_Df], axis=1).to_csv(
         output_file, sep="\t", float_format="%.2f", line_terminator="\n"
     )
     output_file.write('\n')
@@ -397,6 +398,16 @@ class Analyzer:
         """
         Performs statistical analyses on self.table and writes the results into output_file
         """
+        size_var = self.size_var if self.size_var else self.variables[0]
+
+        size_val = self.table[size_var]
+        size_corr_renames = {
+            var: f"ratio_{var}_{size_var}" for var in self.variables if var != size_var}
+        size_corr_table = self.table.drop(columns=size_var).rename(
+            columns=size_corr_renames)
+        size_corr_variables = list(size_corr_renames.values())
+        for var in size_corr_variables:
+            size_corr_table[var] /= size_val
         for analysis in self.analyses:
             remarked_table = do_analysis(
                 self.table.copy(), self.variables, analysis, self.output_file)
@@ -405,30 +416,20 @@ class Analyzer:
                 self.table_file, sep='\t', line_terminator='\n')
             self.table_file.write('\n')
 
-            size_var = self.size_var if self.size_var else self.variables[0]
-
-            size_val = self.table[size_var]
-            size_corr_renames = {
-                var: f"ratio_{var}_{size_var}" for var in self.variables if var != size_var}
-            size_corr_table = self.table.drop(columns=size_var).rename(
-                columns=size_corr_renames)
-            size_corr_variables = list(size_corr_renames.values())
-            for var in size_corr_variables:
-                size_corr_table[var] /= size_val
             self.output_file.write("Size corrected analysis\n")
 
             size_corr_table_remarked = do_analysis(
                 size_corr_table.copy(), size_corr_variables, analysis, self.output_file)
+            print("Linear discriminant analysis.", file=self.output_file)
+
+            write_lda(size_corr_table, size_corr_variables,
+                      analysis, self.output_file)
             size_corr_table_remarked.to_csv(
                 self.table_file, sep='\t', line_terminator='\n')
 
         print("Principal component analysis.", file=self.output_file)
 
         write_pca(size_corr_table, size_corr_variables, self.output_file)
-
-        print("Linear discriminant analysis.", file=self.output_file)
-
-        write_lda(size_corr_table, size_corr_variables, self.output_file)
 
         print("Diagnoses.", file=self.output_file)
 
