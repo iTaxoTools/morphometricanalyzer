@@ -22,7 +22,12 @@ class FileChooser():
             self._dialog = tk.filedialog.asksaveasfilename
 
         def browse() -> None:
-            self.file_var.set(os.path.relpath(self._dialog()))
+            if (newpath := self._dialog()):
+                try:
+                    newpath = os.path.relpath(newpath)
+                except:
+                    newpath = os.path.abspath(newpath)
+                self.file_var.set(newpath)
 
         self.button = ttk.Button(self.frame, text="Browse", command=browse)
 
