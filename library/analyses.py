@@ -146,7 +146,6 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
 
     Returns a copy of the table with remarks
     """
-    # without this something modifies the table
     # groupby doesn't behave as needed if analysis is empty
     groupedtable = table.groupby(analysis) if analysis else table
     bonferroni_corr = 0.05 / len(variables)
@@ -157,29 +156,39 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
                       sep='\t', line_terminator='\n')
         output_file.write("\n")
 
+    # Header for the ANOVA analysis
     print("2. Simple ANOVA", file=output_file)
     print('\t'.join(["Variable", "N valid cases", "Degrees of Freedom",
                      "F-value", "P (Significance)"]), file=output_file)
+
     for var in variables:
         try:
+            # contains the result of anova_oneway
             anova = anova_analysis(groupedtable, var)
         except FloatingPointError:
             print("Error: Invalid data for simple ANOVA", file=output_file)
             warnings.warn("Floating point error in simple ANOVA",
                           RuntimeWarning)
             break
+        # print a line for var with ANOVA results
         print('\t'.join([var, str(anova.nobs_t), str(anova.df_num), format(
             anova.statistic, ".3f"), bonferroni_mark(anova.pvalue, bonferroni_corr)]), file=output_file)
+    # print the note about bonferroni correction
     print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
     output_file.write("\n")
 
+    # print the result of Tukey analysis to the output file
     tukeyhsd_analysis(table, variables, analysis, output_file)
 
+    # Header for the Student's t-test analysis
     print("3. Student's t-test", file=output_file)
     print("\tStudent's t-test", file=output_file)
     print('\t'.join(['Variable'] + variables), file=output_file)
+
+    # Iteration of all pairs of groups 
     for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable, 2):
         try:
+            # makes two lists of statistics and p-values with entries for each variable
             statistics, pvalues = ttest_ind(group1_table[sorted(
                 variables)], group2_table[variables], nan_policy='omit')
         except FloatingPointError:
@@ -187,12 +196,21 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
             warnings.warn(
                 "Floating point error in the Student's t-test", category=RuntimeWarning)
             break
+        # compose label for the current Student's test
+        # for example:
+        # species1 - species2
+        # or:
+        # species1, locality1 - species2, locality2
         row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
             ' - ' + (', '.join(group2_lbl)
                      if isinstance(group2_lbl, tuple) else group1_lbl)
+        # makes a row of
+        # statistic(var1), pvalue(var1)<Tab>...
         row_content = '\t'.join(
             f"t = {statistic:.3f}; P = {bonferroni_mark(pvalue, bonferroni_corr)}" for statistic, pvalue in zip(statistics, pvalues))
         print(row_label, row_content, sep='\t', file=output_file)
+
+    # Prints a note about the bonferroni correction
     print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
     output_file.write('\n')
 
@@ -401,6 +419,13 @@ class Analyzer:
     """
 
     def __init__(self, buf: TextIO, variables: List[str], analyses: List[List[str]], output_file: TextIO, table_file: TextIO):
+        """
+        buf - buffer containing the data table
+        variables - list of the names of fields that should be regarded as variables
+        analyses - list of lists of name, each element of 'analyses' will be used for grouping in separate analyses
+        output_file - buffer for the output of analyses' results
+        table_file - buffer for the output of modified tables
+        """
         self.table = pd.read_table(buf, index_col='specimenid', usecols=(
             ['specimenid', 'species', 'sex', 'locality'] + variables + ['remark']), dtype={'remark': 'string'})
         self.table['remark'].fillna("", inplace=True)
@@ -411,6 +436,12 @@ class Analyzer:
         self.size_var: Optional[str] = None
 
     def set_size_var(self, value: Optional[str] = None) -> None:
+        """
+        Sets the name of the variable, which is used for normalization 
+        of the other variable during the second part of analysis
+
+        Raises an ValueError if value is not one of the variables
+        """
         if value:
             if value in self.variables:
                 self.size_var = value
@@ -424,43 +455,66 @@ class Analyzer:
         """
         Performs statistical analyses on self.table and writes the results into output_file
         """
-        np.seterr('raise')
+        np.seterr('raise') # enable detection of floating point errors
+
+        # If normalization variable is not given, use the first variable
         size_var = self.size_var if self.size_var else self.variables[0]
 
+        # column of values of the normalization variable
         size_val = self.table[size_var]
+
+        # dictionary used to rename variable column in normalized tables
         size_corr_renames = {
             var: f"ratio_{var}_{size_var}" for var in self.variables if var != size_var}
+
+        # the normalized table
         size_corr_table = self.table.drop(columns=size_var).rename(
             columns=size_corr_renames)
+
+        # list of variables' names in the normalized table
         size_corr_variables = list(size_corr_renames.values())
+
+        # perform the normalization
         for var in size_corr_variables:
             size_corr_table[var] /= size_val
+
+        # perform the analyses that depend on grouping
         for analysis in self.analyses:
+            # copy of self.table with remarks specific to the current grouping
             remarked_table = do_analysis(
-                self.table.copy(), self.variables, analysis, self.output_file)
+                self.table.copy(), self.variables, analysis, self.output_file) # results of non-normalized analyses are written to the output file
+
+            # write the remarked table to the table file
             self.output_file.write("\n")
             remarked_table.to_csv(
                 self.table_file, sep='\t', line_terminator='\n')
             self.table_file.write('\n')
 
-            self.output_file.write("Size corrected analysis\n")
 
+            # results of normalized analyses are written to the output file
+            self.output_file.write("Size corrected analysis\n")
+            # copy of size_corr_table with remarks
             size_corr_table_remarked = do_analysis(
                 size_corr_table.copy(), size_corr_variables, analysis, self.output_file)
             print("Linear discriminant analysis.", file=self.output_file)
 
-            write_lda(size_corr_table, size_corr_variables,
-                      analysis, self.output_file)
+            # write the remarked normalized table to the table file
             size_corr_table_remarked.to_csv(
                 self.table_file, sep='\t', line_terminator='\n')
 
-        print("Principal component analysis.", file=self.output_file)
+            # The result of Linear Discriminant analysis on normalized variables is written to the output file
+            write_lda(size_corr_table, size_corr_variables,
+                      analysis, self.output_file)
 
+        # The result of Principal Component analysis on normalized variables is written to the output file
+        print("Principal component analysis.", file=self.output_file)
         write_pca(size_corr_table, size_corr_variables, self.output_file)
 
         print("Diagnoses.", file=self.output_file)
 
+        # insert size_var back into the normalized table to enable comparison of species with respect to it
         size_corr_table.insert(loc=3, column=size_var,
                                value=self.table[size_var])
+        # searches for instances of pairs of species with non-overlapping ranges in some variable and displays them in the output file
         order_species_ranges(
             size_corr_table, [size_var] + size_corr_variables, self.output_file)
