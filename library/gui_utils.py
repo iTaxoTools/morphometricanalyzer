@@ -20,6 +20,8 @@ class FileChooser():
             self._dialog = tkfiledialog.askopenfilename
         elif mode == "save":
             self._dialog = tkfiledialog.asksaveasfilename
+        elif mode == "dir":
+            self._dialog = tkfiledialog.askdirectory
 
         def browse() -> None:
             newpath: Optional[str] = self._dialog()

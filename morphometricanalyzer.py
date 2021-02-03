@@ -19,9 +19,8 @@ def gui_main() -> None:
     mainframe.columnconfigure([0, 1, 2], weight=1)
 
     input_chooser = FileChooser(mainframe, label="Input file", mode="open")
-    output_chooser = FileChooser(mainframe, label="Output file", mode="save")
-    table_chooser = FileChooser(
-        mainframe, label="Modified table file", mode="save")
+    output_chooser = FileChooser(
+        mainframe, label="Output directory", mode="dir")
 
     analyses_widget = AnalysesWidget(mainframe)
 
@@ -30,8 +29,9 @@ def gui_main() -> None:
 
     def process_table() -> None:
         input_file = input_chooser.file_var.get()
-        output_file = output_chooser.file_var.get()
-        table_file = table_chooser.file_var.get()
+        output_dir = output_chooser.file_var.get()
+        output_file = os.path.join(output_dir, "output.txt")
+        table_file = os.path.join(output_dir, "table.txt")
 
         try:
             with open(input_file, errors='replace') as input_file, open(output_file, mode='w') as output_file, open(table_file, mode='w') as table_file:
@@ -81,8 +81,7 @@ def gui_main() -> None:
 
     input_chooser.grid(row=0, column=0, sticky="nsew")
     output_chooser.grid(row=0, column=1, sticky="nsew")
-    table_chooser.grid(row=0, column=2, sticky="nsew")
-    process_btn.grid(row=1, column=1)
+    process_btn.grid(row=1, column=0, columnspan=2)
 
     size_var_chooser.grid(row=2, column=0, columnspan=3, sticky='w')
     num_analyses_lbl.grid(row=0, column=0)
