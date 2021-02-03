@@ -34,7 +34,7 @@ def gui_main() -> None:
         table_file = table_chooser.file_var.get()
 
         try:
-            with open(input_file) as input_file, open(output_file, mode='w') as output_file, open(table_file, mode='w') as table_file:
+            with open(input_file, errors='replace') as input_file, open(output_file, mode='w') as output_file, open(table_file, mode='w') as table_file:
                 corrector = MistakeCorrector(input_file)
                 buf = io.StringIO()
                 for line in corrector:
