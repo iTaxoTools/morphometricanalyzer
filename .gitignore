@@ -130,3 +130,4 @@ dmypy.json
 
 testfiles/
 references/
+pyrightconfig.json

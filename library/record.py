@@ -53,7 +53,7 @@ class Record():
         if key in Record.metadata_fields:
             try:
                 return self.__getattribute__(key)
-            except AttributeError as ex:
+            except AttributeError:
                 return default
         else:
             return self.variables.get(key, default)

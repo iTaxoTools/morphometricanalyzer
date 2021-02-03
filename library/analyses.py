@@ -1,7 +1,7 @@
 import itertools
 import os
 from contextlib import redirect_stdout
-from typing import Dict, Iterator, List, Optional, Set, TextIO, Tuple
+from typing import Dict, Iterator, List, Optional, TextIO, Tuple, Any
 
 import numpy as np
 import numpy.ma as ma
@@ -11,7 +11,7 @@ from scipy.stats import kruskal, mannwhitneyu, ttest_ind
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from statsmodels.stats.base import HolderTuple
-from statsmodels.stats.multicomp import MultiComparison, pairwise_tukeyhsd
+from statsmodels.stats.multicomp import MultiComparison
 from statsmodels.stats.oneway import anova_oneway
 import warnings
 
@@ -42,7 +42,7 @@ def median_and_others(col: pd.Series) -> str:
         return f"{col.median():.3f}, {col.quantile(0.75):.3f} - {col.quantile(0.25):.3f} ({col.min():.3f} - {col.max():.3f}), N = {num}"
 
 
-def mean_analysis(table: pd.core.groupby.GroupBy, variables: List[str]) -> Iterator[pd.DataFrame]:
+def mean_analysis(table: Any, variables: List[str]) -> Iterator[pd.DataFrame]:
     """
     Returns two tables, one with means and another with means and other values
     """
@@ -55,7 +55,7 @@ def mean_analysis(table: pd.core.groupby.GroupBy, variables: List[str]) -> Itera
     yield table.aggregate(mean_and_others).rename(columns=meanvar_rename)
 
 
-def median_analysis(table: pd.core.groupby.GroupBy, variables: List[str]) -> Iterator[pd.DataFrame]:
+def median_analysis(table: Any, variables: List[str]) -> Iterator[pd.DataFrame]:
     """
     Returns two tables, one with medians and another with medians and other values
     """
@@ -87,7 +87,7 @@ def bonferroni_mark(pvalue: float, bonferroni_corr: float) -> str:
     return format_pvalue(pvalue) + ("*" if pvalue < bonferroni_corr else "§" if pvalue < 0.05 else "")
 
 
-def anova_analysis(table: pd.core.groupby.GroupBy, var: str) -> HolderTuple:
+def anova_analysis(table: Any, var: str) -> HolderTuple:
     """
     Returns the results for oneway ANOVA analysis in the table for the variable var
     """
@@ -222,7 +222,7 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
         # species1, locality1 - species2, locality2
         row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
             ' - ' + (', '.join(group2_lbl)
-                     if isinstance(group2_lbl, tuple) else group1_lbl)
+                     if isinstance(group2_lbl, tuple) else group2_lbl)
         # makes a row of
         # statistic(var1), pvalue(var1)<Tab>...
         row_content = '\t'.join(
@@ -272,7 +272,7 @@ def do_analysis(table: pd.DataFrame, variables: List[str], analysis: List[str], 
     for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable, 2):
         row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
             ' - ' + (', '.join(group2_lbl)
-                     if isinstance(group2_lbl, tuple) else group1_lbl)
+                     if isinstance(group2_lbl, tuple) else group2_lbl)
         # Each table gets the same row label
         full_table.append(row_label)
         significance_table.append(row_label)
