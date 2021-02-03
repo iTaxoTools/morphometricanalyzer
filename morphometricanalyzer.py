@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
+from library.analyses import Analyzer
+from library.mistake_corrector import *
+from library.gui_utils import *
 import sys
 import tkinter as tk
 import tkinter.messagebox as tkmessagebox
 import tkinter.ttk as ttk
 import io
+import os
 import warnings
+from datetime import datetime, timezone
+import logging
 
-from library.gui_utils import *
-from library.mistake_corrector import *
-from library.analyses import Analyzer
+try:
+    os.mkdir(os.path.join(sys.path[0], "logs"))
+except Exception:
+    pass
+
+log_file_name = f"log_{datetime.now(timezone.utc):%d-%b-%Y_%H-%M-%S}UTC.txt"
+logging.basicConfig(filename=os.path.join(
+    sys.path[0], "logs", log_file_name), level=logging.INFO)
 
 
 def gui_main() -> None:
@@ -32,6 +43,7 @@ def gui_main() -> None:
         output_dir = output_chooser.file_var.get()
         output_file = os.path.join(output_dir, "output.txt")
         table_file = os.path.join(output_dir, "table.txt")
+        logging.info(f"Processing, input: {input_file}, output: {output_dir}")
 
         try:
             with open(input_file, errors='replace') as input_file, open(output_file, mode='w') as output_file, open(table_file, mode='w') as table_file:
@@ -50,14 +62,17 @@ def gui_main() -> None:
                     tkmessagebox.showwarning("Warning", '\n\n'.join(
                         set(str(w.message) for w in warns)))
                     tkmessagebox.showinfo("Done", "All analyses are complete")
-        except ValueError as ex:
-            tkmessagebox.showerror("Error", str(ex))
+                    logging.info("Processing successful\n")
         except FileNotFoundError as ex:
+            logging.error(ex)
             if ex.filename:
                 tkmessagebox.showerror("Error", str(ex))
             else:
                 tkmessagebox.showerror(
                     "Error", "One of the file names is empty.")
+        except Exception as ex:
+            logging.error(ex)
+            tkmessagebox.showerror("Error", str(ex))
 
     process_btn = ttk.Button(mainframe, text="Process", command=process_table)
 
@@ -72,6 +87,8 @@ def gui_main() -> None:
         try:
             num = int(num_analyses_var.get())
         except ValueError:
+            tkmessagebox.showwarning(
+                title="Warning", message="Can't set number of analyses to {num_analyses_var.get()}")
             return
         else:
             analyses_widget.set_count(num)
