@@ -1,5 +1,5 @@
 from library.record import *
-from typing import Set, List, Tuple, TextIO, Optional, Iterator, cast
+from typing import Set, List, Tuple, TextIO, Optional, Iterator
 
 
 class HeaderFixer():

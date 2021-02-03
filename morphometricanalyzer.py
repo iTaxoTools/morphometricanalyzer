@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import tkinter as tk
-import tkinter.messagebox
+import tkinter.messagebox as tkmessagebox
 import tkinter.ttk as ttk
 import io
 import warnings
@@ -47,16 +47,16 @@ def gui_main() -> None:
                 analyzer.set_size_var(size_var_chooser.var.get().casefold())
                 with warnings.catch_warnings(record=True) as warns:
                     analyzer.analyse()
-                    tk.messagebox.showwarning("Warning", '\n\n'.join(
+                    tkmessagebox.showwarning("Warning", '\n\n'.join(
                         set(str(w.message) for w in warns)))
-                    tk.messagebox.showinfo("Done", "All analyses are complete")
+                    tkmessagebox.showinfo("Done", "All analyses are complete")
         except ValueError as ex:
-            tk.messagebox.showerror("Error", str(ex))
+            tkmessagebox.showerror("Error", str(ex))
         except FileNotFoundError as ex:
             if ex.filename:
-                tk.messagebox.showerror("Error", str(ex))
+                tkmessagebox.showerror("Error", str(ex))
             else:
-                tk.messagebox.showerror(
+                tkmessagebox.showerror(
                     "Error", "One of the file names is empty.")
 
     process_btn = ttk.Button(mainframe, text="Process", command=process_table)
