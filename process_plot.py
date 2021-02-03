@@ -60,7 +60,7 @@ def processplot(x, y= "."):
         for line in corrector:
             print(line, file=buf)
         buf.seek(0, 0)
-        Plot(buf)
+        Plot(buf, y)
 
 
 
