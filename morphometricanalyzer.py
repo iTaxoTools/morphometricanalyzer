@@ -27,7 +27,7 @@ def gui_main() -> None:
     root.rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
     mainframe = ttk.Frame(root, padding=5)
-    mainframe.columnconfigure([0, 1, 2], weight=1)
+    mainframe.columnconfigure([0, 1], weight=1)
 
     input_chooser = FileChooser(mainframe, label="Input file", mode="open")
     output_chooser = FileChooser(
