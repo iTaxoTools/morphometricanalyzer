@@ -88,7 +88,7 @@ def gui_main() -> None:
             num = int(num_analyses_var.get())
         except ValueError:
             tkmessagebox.showwarning(
-                title="Warning", message="Can't set number of analyses to {num_analyses_var.get()}")
+                title="Warning", message=f"Can't set number of analyses to {num_analyses_var.get()}")
             return
         else:
             analyses_widget.set_count(num)
