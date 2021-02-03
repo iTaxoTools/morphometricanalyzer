@@ -17,7 +17,7 @@ try:
 except Exception:
     pass
 
-log_file_name = f"log_{datetime.now(timezone.utc):%d-%b-%Y_%H-%M-%S}UTC.txt"
+log_file_name = f"log_{datetime.now(timezone.utc):%d-%b-%Y_%H-%M}UTC.txt"
 logging.basicConfig(filename=os.path.join(
     sys.path[0], "logs", log_file_name), level=logging.INFO)
 
