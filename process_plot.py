@@ -49,9 +49,10 @@ def adjust_box_widths(g, fac):
                         l.set_xdata([xmin_new,xmax_new])
 
 
-def processplot(x):
+def processplot(x, y= "."):
     """
     Function taking input file (tab, or any typical file allowed by morphometricanalyzer tool) using MistakeCorrector class by Vladimir
+    and output directory location as string to output the plots
     """
     with open(x) as input_file:
         corrector = MistakeCorrector(input_file)
@@ -69,13 +70,15 @@ class Plot:
     This class contains all the parameters for plots
     """
 
-    def __init__(self, buf: TextIO):
+    def __init__(self, buf: TextIO, y: str):
         """
         buf - buffer containing the data table
+        y- path string of directory for plots output
         
         """
         self.table = pd.read_table(buf, index_col='specimenid')
         self.table['remark'].fillna("", inplace=True)
+        self.output= y
 
         self.pcaplot()
         self.plsplot()
@@ -103,7 +106,7 @@ class Plot:
                 ax.tick_params(axis="x", labelsize=10)
                 ax.tick_params(axis="y", labelsize=10)
 
-            plt.savefig(col+"species_boxplot"+'.pdf', transparent=True)
+            plt.savefig(os.path.join(self.output, col+"species_boxplot"+'.pdf'), transparent=True)
 
 
 
@@ -124,7 +127,7 @@ class Plot:
                 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
                 ax.set_title(ax.get_title(),  fontsize=12)
                 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
-            plt.savefig(col+"sex_paired_boxplot"+'.pdf', transparent=True)
+            plt.savefig(os.path.join(self.output, col+"sex_paired_boxplot"+'.pdf'), transparent=True)
 
     def pcaplot(self):
         import sklearn.decomposition
@@ -161,7 +164,7 @@ class Plot:
             ax.set_title(ax.get_title(), fontsize=20)
             ax.set_ylabel(ax.get_ylabel(), fontsize=18)
             ax.legend(targets, loc= "best", prop=dict(size=15))
-        plt.savefig("pca_plot"+'.pdf', transparent=True)
+        plt.savefig(os.path.join(self.output, "pca_plot"+'.pdf'), transparent=True)
 
 
 
@@ -206,7 +209,7 @@ class Plot:
             ax.set_ylabel('pls 2', fontsize = 15)
             ax.set_title('2 Component LDA Plot', fontsize = 20)
 
-        plt.savefig("lda_plot"+'.pdf', transparent=True)
+        plt.savefig(os.path.join(self.output, "lda_plot"+'.pdf'), transparent=True)
 
 
 
