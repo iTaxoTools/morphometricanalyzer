@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import warnings
 
 from library.mistake_corrector import *
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -65,8 +66,7 @@ class Plot:
 
     def boxplot1(self, df: pd.DataFrame):
         xx = sorted(df['species'].unique(), reverse=True)
-        numeric_columns = (col for col in df.columns if np.issubdtype(
-            df.dtypes[col], np.number))
+        numeric_columns = (col for col in df.columns if pd.api.types.is_numeric_dtype(df.dtypes[col]))
         for col in numeric_columns:
             g = sns.FacetGrid(df[["species", col]], height=8, aspect=1)
             g.map(sns.boxplot, "species", col,
@@ -86,8 +86,7 @@ class Plot:
 
     def boxplot2(self, df: pd.DataFrame):
         xx = sorted(df['species'].unique(), reverse=True)
-        numeric_columns = (col for col in df.columns if np.issubdtype(
-            df.dtypes[col], np.number))
+        numeric_columns = (col for col in df.columns if pd.api.types.is_numeric_dtype(df.dtypes[col]))
         for col in numeric_columns:
             g = sns.FacetGrid(df[['species', 'sex', col]], col="species", sharex=False,
                               sharey=False, height=4)
@@ -111,6 +110,11 @@ class Plot:
         targets = keys
         colors= sns.color_palette("Dark2", 9)
         markers=["*", "o", "s", "D"]
+        n_components = min(len(df.columns) - 1, 4);
+        if n_components < 2:
+            warnings.warn("PCA plot is not possible")
+            return
+
         for c1, c2 in ((1, 2), (2, 3), (3, 4)):
             fig = plt.figure(figsize = (8,8))
             ax = fig.add_subplot(1,1,1)
@@ -120,8 +124,8 @@ class Plot:
 
             for target, color, marker in zip(targets, colors, markers):
                 indicesToKeep = df['species'] == target
-                ax.scatter(df.loc[indicesToKeep, 'PC{c1}']
-                           , df.loc[indicesToKeep, 'PC{c2}'], c = color, marker= marker
+                ax.scatter(df.loc[indicesToKeep, f'PC{c1}']
+                           , df.loc[indicesToKeep, f'PC{c2}'], c = color, marker= marker
                            , s = 50)
                 ax.tick_params(axis="x", labelsize=15)
                 ax.tick_params(axis="y", labelsize=15)
@@ -129,7 +133,7 @@ class Plot:
                 ax.set_title(ax.get_title(), fontsize=20)
                 ax.set_ylabel(ax.get_ylabel(), fontsize=18)
                 ax.legend(targets, loc= "best", prop=dict(size=15))
-            plt.savefig(os.path.join(self.output_dir, "pca{c1}{c2}_plot"+'.pdf'), transparent=True)
+            plt.savefig(os.path.join(self.output_dir, f"pca{c1}{c2}_plot"+'.pdf'), transparent=True)
 
     def ldaplot(self, df: pd.DataFrame):
         """
@@ -143,6 +147,9 @@ class Plot:
 
         fig = plt.figure(figsize = (8,8))
         ax = fig.add_subplot(1,1,1)
+        if len(df.columns) < 3:
+            warnings.warn(f"LDA plot for {label} is not possible")
+            return
 
         for target, color, marker in zip(targets, colors, markers):
 
@@ -161,4 +168,4 @@ class Plot:
             ax.set_ylabel('LDA 2', fontsize = 15)
             ax.set_title('2 Component LDA Plot', fontsize = 20)
 
-        plt.savefig(os.path.join(self.output_dir, "lda_plot"+'.pdf'), transparent=True)
+        plt.savefig(os.path.join(self.output_dir, f"{label}_lda_plot"+'.pdf'), transparent=True)

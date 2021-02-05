@@ -1,9 +1,10 @@
+from contextlib import redirect_stdout
 import itertools
+import logging
 import os
 import time
-from contextlib import redirect_stdout
-from typing import Dict, Iterator, List, Optional, TextIO, Tuple, Any
-import logging
+from typing import Any, Dict, Iterator, List, Optional, TextIO, Tuple
+import warnings
 
 import numpy as np
 import numpy.ma as ma
@@ -15,7 +16,8 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from statsmodels.stats.base import HolderTuple
 from statsmodels.stats.multicomp import MultiComparison
 from statsmodels.stats.oneway import anova_oneway
-import warnings
+
+from library.process_plot import Plot
 
 
 def mean_and_others(col: pd.Series) -> str:
@@ -141,7 +143,7 @@ def blank_upper_triangle(table: np.array) -> np.array:
     return ma.MaskedArray(table, mask=~np.logical_not(np.triu(table)))
 
 
-def write_pca(table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
+def write_pca(table: pd.DataFrame, variables: List[str], output_file: TextIO, plotter: Plot) -> None:
     RETAINED_VARIANCE = 0.75
     MAX_PC = 6
     pca = PCA(RETAINED_VARIANCE)
@@ -152,9 +154,11 @@ def write_pca(table: pd.DataFrame, variables: List[str], output_file: TextIO) ->
         index=table.index,
         columns=pc_columns
     )
-    pd.concat([table['species'], principalDf], axis=1).to_csv(
+    pca_table = pd.concat([table['species'], principalDf], axis=1)
+    pca_table.to_csv(
         output_file, sep="\t", float_format="%.2f", line_terminator="\n",
         columns=['species'] + pc_columns[:MAX_PC])
+    plotter.pcaplot(pca_table)
     loading = pca.components_.T * np.sqrt(pca.explained_variance_)
     loading_matrix = pd.DataFrame(
         loading,
@@ -208,7 +212,7 @@ def order_species_ranges(table: pd.DataFrame, variables: List[str], output_file:
         output_file.write(".\n\n")
 
 
-def write_lda(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> None:
+def write_lda(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO, plotter: Plot) -> None:
     clf = LinearDiscriminantAnalysis()
     try:
         lda_table = clf.fit_transform(
@@ -224,6 +228,8 @@ def write_lda(table: pd.DataFrame, variables: List[str], analysis: List[str], ou
         index=table.index,
         columns=ld_columns
     )
+    labels = pd.Series("", index = table.index).str.cat(table[analysis], sep='-')
+    plotter.ldaplot(pd.concat([labels, principalDf], axis=1))
     try:
         prob_classes = clf.predict_proba(table[variables])
     except FloatingPointError:
@@ -249,7 +255,7 @@ class Analyzer:
     This class contains all the parameters for analysis
     """
 
-    def __init__(self, buf: TextIO, variables: List[str], analyses: List[List[str]], output_file: TextIO, table_file: TextIO):
+    def __init__(self, buf: TextIO, variables: List[str], analyses: List[List[str]], output_file: TextIO, table_file: TextIO, output_dir: str):
         """
         buf - buffer containing the data table
         variables - list of the names of fields that should be regarded as variables
@@ -266,6 +272,7 @@ class Analyzer:
         self.variables = variables
         self.size_var: Optional[str] = None
         self.start_time = time.monotonic()
+        self.plotter = Plot(output_dir)
 
     def log_with_time(self, message: str) -> None:
         time_passed = time.monotonic() - self.start_time
@@ -293,6 +300,10 @@ class Analyzer:
         """
         np.seterr('raise')  # enable detection of floating point errors
 
+        # plot boxplots
+        self.plotter.boxplot1(self.table)
+        self.plotter.boxplot2(self.table)
+
         # If normalization variable is not given, use the first variable
         size_var = self.size_var if self.size_var else self.variables[0]
 
@@ -316,6 +327,7 @@ class Analyzer:
 
         # perform the analyses that depend on grouping
         for current, analysis in enumerate(self.analyses):
+
             self.log_with_time(f"Analysis {current}")
             self.log_with_time("Uncorrected analysis")
             # copy of self.table with remarks specific to the current grouping
@@ -343,12 +355,12 @@ class Analyzer:
             self.log_with_time("Linear Discriminant analysis")
             # The result of Linear Discriminant analysis on normalized variables is written to the output file
             write_lda(size_corr_table, size_corr_variables,
-                      analysis, self.output_file)
+                      analysis, self.output_file, self.plotter)
 
         # The result of Principal Component analysis on normalized variables is written to the output file
         self.log_with_time("Principal component analysis")
         print("Principal component analysis.", file=self.output_file)
-        write_pca(size_corr_table, size_corr_variables, self.output_file)
+        write_pca(size_corr_table, size_corr_variables, self.output_file, self.plotter)
 
         self.log_with_time("Diagnoses")
         print("Diagnoses.", file=self.output_file)
