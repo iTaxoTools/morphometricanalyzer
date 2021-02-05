@@ -55,7 +55,7 @@ def gui_main() -> None:
                 output_file.write("\n\n\n")
                 buf.seek(0, 0)
                 analyzer = Analyzer(buf, corrector.header_fixer.variables, [
-                    ['species', 'sex']], output_file, table_file)
+                    ['species', 'sex']], output_file, table_file, output_dir)
                 analyzer.set_size_var(size_var_chooser.var.get().casefold())
                 with warnings.catch_warnings(record=True) as warns:
                     analyzer.analyse()
@@ -70,9 +70,11 @@ def gui_main() -> None:
             else:
                 tkmessagebox.showerror(
                     "Error", "One of the file names is empty.")
+            raise ex from ex
         except Exception as ex:
             logging.error(ex)
             tkmessagebox.showerror("Error", str(ex))
+            raise ex from ex
 
     process_btn = ttk.Button(mainframe, text="Process", command=process_table)
 
@@ -115,6 +117,7 @@ def gui_main() -> None:
 
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "--cmd":
+        import tempfile
         corrector = MistakeCorrector(sys.stdin)
         buf = io.StringIO()
         for line in corrector:
@@ -123,7 +126,7 @@ def main() -> None:
         sys.stderr.write("\n\n\n")
         buf.seek(0, 0)
         analyzer = Analyzer(buf, corrector.header_fixer.variables, [
-                            ['species', 'sex']], sys.stderr, sys.stdout)
+                            ['species', 'sex']], sys.stderr, sys.stdout, tempfile.mkdtemp())
         with warnings.catch_warnings(record=True) as warns:
             analyzer.analyse()
             for message in set(str(w.message) for w in warns):
