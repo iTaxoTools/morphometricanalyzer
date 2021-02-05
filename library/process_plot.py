@@ -215,5 +215,3 @@ class Plot:
 
 
 
-if __name__ == "__main__":
-    processplot("samplefile_morphometricanalyzer_extended.tab")
