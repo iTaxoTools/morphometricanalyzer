@@ -54,8 +54,8 @@ def gui_main() -> None:
                 corrector.report(output_file)
                 output_file.write("\n\n\n")
                 buf.seek(0, 0)
-                analyzer = Analyzer(buf, corrector.header_fixer.variables, [
-                    ['species', 'sex']], output_file, table_file, output_dir)
+                analyzer = Analyzer(buf, corrector.header_fixer.variables, analyses_widget.get(
+                ), output_file, table_file, output_dir)
                 analyzer.set_size_var(size_var_chooser.var.get().casefold())
                 with warnings.catch_warnings(record=True) as warns:
                     analyzer.analyse()
