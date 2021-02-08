@@ -9,11 +9,6 @@ import pandas as pd
 import seaborn as sns
 import warnings
 
-from library.mistake_corrector import *
-matplotlib.rcParams['pdf.fonttype'] = 42
-matplotlib.rcParams['ps.fonttype'] = 42
-
-rc('font', **{'family': 'sans-serif'})
 
 
 def adjust_box_widths(boxplot: sns.FacetGrid, fac: float) -> None:
@@ -62,6 +57,10 @@ class Plot:
         y- path string of directory for plots output
 
         """
+        matplotlib.rcParams['pdf.fonttype'] = 42
+        matplotlib.rcParams['ps.fonttype'] = 42
+
+        rc('font', **{'family': 'sans-serif'})
         self.output_dir = output_dir
 
     def boxplot1(self, df: pd.DataFrame):
@@ -85,7 +84,7 @@ class Plot:
                                      "_species_boxplot"+'.pdf'), transparent=True)
 
     def boxplot2(self, df: pd.DataFrame):
-        xx = sorted(df['species'].unique(), reverse=True)
+        xx = sorted(df['sex'].unique(), reverse=True)
         numeric_columns = (col for col in df.columns if pd.api.types.is_numeric_dtype(df.dtypes[col]))
         for col in numeric_columns:
             g = sns.FacetGrid(df[['species', 'sex', col]], col="species", sharex=False,
@@ -125,14 +124,14 @@ class Plot:
             for target, color, marker in zip(targets, colors, markers):
                 indicesToKeep = df['species'] == target
                 ax.scatter(df.loc[indicesToKeep, f'PC{c1}']
-                           , df.loc[indicesToKeep, f'PC{c2}'], c = color, marker= marker
-                           , s = 50)
-                ax.tick_params(axis="x", labelsize=15)
-                ax.tick_params(axis="y", labelsize=15)
-                ax.set_xlabel(ax.get_xlabel(),   fontsize=18)
-                ax.set_title(ax.get_title(), fontsize=20)
-                ax.set_ylabel(ax.get_ylabel(), fontsize=18)
-                ax.legend(targets, loc= "best", prop=dict(size=15))
+                           , df.loc[indicesToKeep, f'PC{c2}'], color = color, marker= marker
+                           , s = 50, label=target)
+            ax.tick_params(axis="x", labelsize=15)
+            ax.tick_params(axis="y", labelsize=15)
+            ax.set_xlabel(ax.get_xlabel(),   fontsize=18)
+            ax.set_title(ax.get_title(), fontsize=20)
+            ax.set_ylabel(ax.get_ylabel(), fontsize=18)
+            ax.legend(loc= "best", prop=dict(size=15))
             plt.savefig(os.path.join(self.output_dir, f"pca{c1}{c2}_plot"+'.pdf'), transparent=True)
 
     def ldaplot(self, df: pd.DataFrame):
@@ -152,20 +151,19 @@ class Plot:
             return
 
         for target, color, marker in zip(targets, colors, markers):
-
             indicesToKeep = df[label] == target
             ax.scatter(df.loc[indicesToKeep, 'LD1']
                        , df.loc[indicesToKeep, 'LD2']
-                       , c = color, marker= marker
-                       , s = 50)
-            ax.tick_params(axis="x", labelsize=15)
-            ax.tick_params(axis="y", labelsize=15)
-            ax.set_xlabel(ax.get_xlabel(),   fontsize=18)
-            ax.set_title(ax.get_title(), fontsize=20)
-            ax.set_ylabel(ax.get_ylabel(), fontsize=18)
-            ax.legend(targets, loc= "best", prop=dict(size=15))
-            ax.set_xlabel('LDA 1', fontsize = 15)
-            ax.set_ylabel('LDA 2', fontsize = 15)
-            ax.set_title('2 Component LDA Plot', fontsize = 20)
+                       , color = color, marker= marker
+                       , s = 50, label=target)
+        ax.tick_params(axis="x", labelsize=15)
+        ax.tick_params(axis="y", labelsize=15)
+        ax.set_xlabel(ax.get_xlabel(),   fontsize=18)
+        ax.set_title(ax.get_title(), fontsize=20)
+        ax.set_ylabel(ax.get_ylabel(), fontsize=18)
+        ax.set_xlabel('LDA 1', fontsize = 15)
+        ax.set_ylabel('LDA 2', fontsize = 15)
+        ax.set_title('2 Component LDA Plot', fontsize = 20)
+        ax.legend(loc= "best", prop=dict(size=15))
 
         plt.savefig(os.path.join(self.output_dir, f"{label}_lda_plot"+'.pdf'), transparent=True)

@@ -132,3 +132,4 @@ testfiles/
 references/
 pyrightconfig.json
 logs/
+testing/
