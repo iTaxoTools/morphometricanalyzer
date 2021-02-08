@@ -143,35 +143,6 @@ def blank_upper_triangle(table: np.array) -> np.array:
     return ma.MaskedArray(table, mask=~np.logical_not(np.triu(table)))
 
 
-def write_pca(table: pd.DataFrame, variables: List[str], output_file: TextIO, plotter: Plot) -> None:
-    RETAINED_VARIANCE = 0.75
-    MAX_PC = 6
-    pca = PCA(RETAINED_VARIANCE)
-    principal_components = pca.fit_transform(table[variables])
-    pc_columns = [f"PC{i+1}" for i in range(0, pca.n_components_)]
-    principalDf = pd.DataFrame(
-        principal_components,
-        index=table.index,
-        columns=pc_columns
-    )
-    pca_table = pd.concat([table['species'], principalDf], axis=1)
-    pca_table.to_csv(
-        output_file, sep="\t", float_format="%.2f", line_terminator="\n",
-        columns=['species'] + pc_columns[:MAX_PC])
-    plotter.pcaplot(pca_table)
-    loading = pca.components_.T * np.sqrt(pca.explained_variance_)
-    loading_matrix = pd.DataFrame(
-        loading,
-        index=variables,
-        columns=pc_columns
-    )
-    loading_matrix.to_csv(
-        output_file, sep="\t", float_format="%.3f", line_terminator="\n",
-        columns=pc_columns[:MAX_PC])
-    print('Explained variance',
-          *[f"{ratio * 100:.1f}%" for ratio in pca.explained_variance_ratio_],
-          sep='\t', file=output_file)
-    output_file.write('\n')
 
 
 def order_species_ranges(table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
@@ -212,42 +183,6 @@ def order_species_ranges(table: pd.DataFrame, variables: List[str], output_file:
         output_file.write(".\n\n")
 
 
-def write_lda(table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO, plotter: Plot) -> None:
-    clf = LinearDiscriminantAnalysis()
-    try:
-        lda_table = clf.fit_transform(
-            table[variables], table[analysis].agg(lambda l: '-'.join(l), axis=1))
-    except FloatingPointError:
-        print("Error: Invalid data for Linear Discriminant Analysis", file=output_file)
-        warnings.warn("Floating point error in Linear Discriminant Analysis")
-        return
-    ld_num = lda_table.shape[1]
-    ld_columns = [f"LD{i+1}" for i in range(0, ld_num)]
-    principalDf = pd.DataFrame(
-        lda_table,
-        index=table.index,
-        columns=ld_columns
-    )
-    labels = pd.Series("", index = table.index).str.cat(table[analysis], sep='-')
-    plotter.ldaplot(pd.concat([labels, principalDf], axis=1))
-    try:
-        prob_classes = clf.predict_proba(table[variables])
-    except FloatingPointError:
-        warnings.warn(
-            "Floating point error in Linear Discriminant Analysis probability prediction", category=RuntimeWarning)
-        pd.concat([table[analysis], principalDf], axis=1).to_csv(
-            output_file, sep="\t", float_format="%.2f", line_terminator="\n"
-        )
-    else:
-        prob_Df = pd.DataFrame(
-            prob_classes,
-            index=table.index,
-            columns=[f"Prob {group}" for group in clf.classes_]
-        )
-        pd.concat([table[analysis], principalDf, prob_Df], axis=1).to_csv(
-            output_file, sep="\t", float_format="%.2f", line_terminator="\n"
-        )
-    output_file.write('\n')
 
 
 class Analyzer:
@@ -301,8 +236,11 @@ class Analyzer:
         np.seterr('raise')  # enable detection of floating point errors
 
         # plot boxplots
+        self.log_with_time("First boxplot")
         self.plotter.boxplot1(self.table)
+        self.log_with_time("Second boxplot")
         self.plotter.boxplot2(self.table)
+        self.log_with_time("Boxplots finished")
 
         # If normalization variable is not given, use the first variable
         size_var = self.size_var if self.size_var else self.variables[0]
@@ -354,13 +292,13 @@ class Analyzer:
 
             self.log_with_time("Linear Discriminant analysis")
             # The result of Linear Discriminant analysis on normalized variables is written to the output file
-            write_lda(size_corr_table, size_corr_variables,
-                      analysis, self.output_file, self.plotter)
+            self.write_lda(size_corr_table, size_corr_variables,
+                      analysis, self.output_file)
 
         # The result of Principal Component analysis on normalized variables is written to the output file
         self.log_with_time("Principal component analysis")
         print("Principal component analysis.", file=self.output_file)
-        write_pca(size_corr_table, size_corr_variables, self.output_file, self.plotter)
+        self.write_pca(size_corr_table, size_corr_variables, self.output_file)
 
         self.log_with_time("Diagnoses")
         print("Diagnoses.", file=self.output_file)
@@ -614,3 +552,74 @@ class Analyzer:
         return table
 
 
+    def write_lda(self, table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> None:
+        clf = LinearDiscriminantAnalysis()
+        try:
+            lda_table = clf.fit_transform(
+                table[variables], table[analysis].agg(lambda l: '-'.join(l), axis=1))
+        except FloatingPointError:
+            print("Error: Invalid data for Linear Discriminant Analysis", file=output_file)
+            warnings.warn("Floating point error in Linear Discriminant Analysis")
+            return
+        ld_num = lda_table.shape[1]
+        ld_columns = [f"LD{i+1}" for i in range(0, ld_num)]
+        principalDf = pd.DataFrame(
+            lda_table,
+            index=table.index,
+            columns=ld_columns
+        )
+        labels = pd.Series("", index = table.index, name="-".join(analysis)).str.cat(table[analysis], sep='-')
+        self.log_with_time("Starting LD plot")
+        self.plotter.ldaplot(pd.concat([labels, principalDf], axis=1))
+        self.log_with_time("Finished LD plot")
+        try:
+            prob_classes = clf.predict_proba(table[variables])
+        except FloatingPointError:
+            warnings.warn(
+                "Floating point error in Linear Discriminant Analysis probability prediction", category=RuntimeWarning)
+            pd.concat([table[analysis], principalDf], axis=1).to_csv(
+                output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+            )
+        else:
+            prob_Df = pd.DataFrame(
+                prob_classes,
+                index=table.index,
+                columns=[f"Prob {group}" for group in clf.classes_]
+            )
+            pd.concat([table[analysis], principalDf, prob_Df], axis=1).to_csv(
+                output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+            )
+        output_file.write('\n')
+
+
+    def write_pca(self, table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
+        RETAINED_VARIANCE = 0.75
+        MAX_PC = 6
+        pca = PCA(RETAINED_VARIANCE)
+        principal_components = pca.fit_transform(table[variables])
+        pc_columns = [f"PC{i+1}" for i in range(0, pca.n_components_)]
+        principalDf = pd.DataFrame(
+            principal_components,
+            index=table.index,
+            columns=pc_columns
+        )
+        pca_table = pd.concat([table['species'], principalDf], axis=1)
+        pca_table.to_csv(
+            output_file, sep="\t", float_format="%.2f", line_terminator="\n",
+            columns=['species'] + pc_columns[:MAX_PC])
+        self.log_with_time("Starting PCA plot")
+        self.plotter.pcaplot(pca_table)
+        self.log_with_time("Finished PCA plot")
+        loading = pca.components_.T * np.sqrt(pca.explained_variance_)
+        loading_matrix = pd.DataFrame(
+            loading,
+            index=variables,
+            columns=pc_columns
+        )
+        loading_matrix.to_csv(
+            output_file, sep="\t", float_format="%.3f", line_terminator="\n",
+            columns=pc_columns[:MAX_PC])
+        print('Explained variance',
+              *[f"{ratio * 100:.1f}%" for ratio in pca.explained_variance_ratio_],
+              sep='\t', file=output_file)
+        output_file.write('\n')
