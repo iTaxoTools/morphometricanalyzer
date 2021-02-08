@@ -568,7 +568,7 @@ class Analyzer:
             index=table.index,
             columns=ld_columns
         )
-        labels = pd.Series("", index = table.index, name="-".join(analysis)).str.cat(table[analysis], sep='-')
+        labels = pd.Series(table[analysis[0]], index = table.index, name="-".join(analysis)).str.cat(table[analysis[1:]], sep='-')
         self.log_with_time("Starting LD plot")
         self.plotter.ldaplot(pd.concat([labels, principalDf], axis=1))
         self.log_with_time("Finished LD plot")
