@@ -111,7 +111,7 @@ class Plot:
         markers=["*", "o", "s", "D"]
         n_components = min(len(df.columns) - 1, 4);
         if n_components < 2:
-            warnings.warn("PCA plot is not possible")
+            warnings.warn("Less than 2 PCA components have been calculated.\nPCA plot is not possible")
             return
 
         for c1, c2 in ((1, 2), (2, 3), (3, 4)):

@@ -44,6 +44,10 @@ def gui_main() -> None:
         output_file = os.path.join(output_dir, "output.txt")
         table_file = os.path.join(output_dir, "table.txt")
         logging.info(f"Processing, input: {input_file}, output: {output_dir}")
+        analyses_list = analyses_widget.get()
+        if not analyses_list:
+            tkmessagebox.showerror("Error", "No analyses were chosen")
+            return
 
         try:
             with open(input_file, errors='replace') as input_file, open(output_file, mode='w') as output_file, open(table_file, mode='w') as table_file:
