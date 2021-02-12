@@ -324,6 +324,11 @@ class Analyzer:
         """
         # groupby doesn't behave as needed if analysis is empty
         groupedtable = table.groupby(analysis) if analysis else table
+
+        # make table with groups >= 2 for some analyses
+        small_groups = groupedtable.transform(lambda group: group.count() < 2).iloc[:, 0]
+        groupedtable_filtered = table.loc[small_groups].groupby(analysis) if analysis else table.loc[small_groups]
+
         bonferroni_corr = 0.05 / len(variables)
 
         self.log_with_time("1. Mean Analysis")
@@ -349,7 +354,7 @@ class Analyzer:
         for var in variables:
             try:
                 # contains the result of anova_oneway
-                anova = anova_analysis(groupedtable, var)
+                anova = anova_analysis(groupedtable_filtered, var)
             except FloatingPointError:
                 print("Error: Invalid data for simple ANOVA", file=output_file)
                 warnings.warn("Floating point error in simple ANOVA",
@@ -382,7 +387,7 @@ class Analyzer:
         print('\t'.join(['Variable'] + variables), file=output_file)
 
         # Iteration of all pairs of groups
-        for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable, 2):
+        for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
             try:
                 # makes two lists of statistics and p-values with entries for each variable
                 statistics, pvalues = ttest_ind(group1_table[sorted(
@@ -423,14 +428,17 @@ class Analyzer:
         # After the loop the note about Bonferroni correction is written
         self.log_with_time("5. Kruskal-Wallis ANOVA")
         print("5. Kruskal-Wallis ANOVA", file=output_file)
-        print("Variable", "N valid cases",
-                "P (significance)", sep='\t', file=output_file)
-        for var in variables:
-            statistic, pvalue = kruskal(
-                    *(values for _, values in groupedtable[var]), nan_policy='omit')
-            print(var, f"H() = {statistic:.3f}",
-                    f"p = {bonferroni_mark(pvalue, bonferroni_corr)}", sep='\t', file=output_file)
-            print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+        if len(groupedtable_filtered.groups) < 2: 
+            print("Not enough data for Kruskal-Wallis ANOVA", file=output_file)
+        else:
+            print("Variable", "N valid cases",
+                    "P (significance)", sep='\t', file=output_file)
+            for var in variables:
+                statistic, pvalue = kruskal(
+                        *(values for _, values in groupedtable_filtered[var]), nan_policy='omit')
+                print(var, f"H() = {statistic:.3f}",
+                        f"p = {bonferroni_mark(pvalue, bonferroni_corr)}", sep='\t', file=output_file)
+                print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
         output_file.write('\n')
 
         # Two output tables need to be written but since the output file can only be written sequentially,
@@ -449,7 +457,7 @@ class Analyzer:
         full_table = []
         # the lines of the second table
         significance_table = []
-        for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable, 2):
+        for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
             row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
                     ' - ' + (', '.join(group2_lbl)
                             if isinstance(group2_lbl, tuple) else group2_lbl)
