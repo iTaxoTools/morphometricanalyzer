@@ -614,11 +614,19 @@ class Analyzer:
     def write_pca(self, table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
         RETAINED_VARIANCE = 0.75
         MAX_PC = 6
-        pca = PCA(RETAINED_VARIANCE)
+        pca = PCA()
         principal_components = pca.fit_transform(table[variables])
-        pc_columns = [f"PC{i+1}" for i in range(0, pca.n_components_)]
+        explained_variance = 0
+        for i, variance in enumerate(pca.explained_variance_ratio_):
+            explained_variance += variance
+            if explained_variance >= RETAINED_VARIANCE:
+                pca_components = max(i+1, 2)
+                break
+        else:
+            pca_components = pca.n_components_
+        pc_columns = [f"PC{i+1}" for i in range(0, pca_components)]
         principalDf = pd.DataFrame(
-            principal_components,
+            principal_components[:, :pca_components],
             index=table.index,
             columns=pc_columns
         )
@@ -631,13 +639,13 @@ class Analyzer:
         self.log_with_time("Finished PCA plot")
         loading = pca.components_.T * np.sqrt(pca.explained_variance_)
         loading_matrix = pd.DataFrame(
-            loading,
+            loading[:, :pca_components],
             index=variables,
             columns=pc_columns
         )
         loading_matrix.to_csv(
             output_file, sep="\t", float_format="%.3f", line_terminator="\n",
-            columns=pc_columns[:MAX_PC])
+            columns=pc_columns[:pca_components])
         print('Explained variance',
               *[f"{ratio * 100:.1f}%" for ratio in pca.explained_variance_ratio_],
               sep='\t', file=output_file)
