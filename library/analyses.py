@@ -328,6 +328,8 @@ class Analyzer:
         # make table with groups >= 2 for some analyses
         small_groups = groupedtable.transform(lambda group: group.count() < 2).iloc[:, 0]
         groupedtable_filtered = table.loc[small_groups].groupby(analysis) if analysis else table.loc[small_groups]
+        if len(groupedtable_filtered.groups) < 2:
+            groupedtable_filtered = None
 
         bonferroni_corr = 0.05 / len(variables)
 
@@ -348,23 +350,26 @@ class Analyzer:
         # Header for the ANOVA analysis
         self.log_with_time("2. Simple ANOVA")
         print("2. Simple ANOVA", file=output_file)
-        print('\t'.join(["Variable", "N valid cases", "Degrees of Freedom",
+        if groupedtable_filtered:
+            print('\t'.join(["Variable", "N valid cases", "Degrees of Freedom",
             "F-value", "P (Significance)"]), file=output_file)
 
-        for var in variables:
-            try:
-                # contains the result of anova_oneway
-                anova = anova_analysis(groupedtable_filtered, var)
-            except FloatingPointError:
-                print("Error: Invalid data for simple ANOVA", file=output_file)
-                warnings.warn("Floating point error in simple ANOVA",
-                        RuntimeWarning)
-                break
-            # print a line for var with ANOVA results
-            print('\t'.join([var, str(anova.nobs_t), str(anova.df_num), format(
-                anova.statistic, ".3f"), bonferroni_mark(anova.pvalue, bonferroni_corr)]), file=output_file)
-            # print the note about bonferroni correction
-        print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+            for var in variables:
+                try:
+                    # contains the result of anova_oneway
+                    anova = anova_analysis(groupedtable_filtered, var)
+                except FloatingPointError:
+                    print("Error: Invalid data for simple ANOVA", file=output_file)
+                    warnings.warn("Floating point error in simple ANOVA",
+                            RuntimeWarning)
+                    break
+                # print a line for var with ANOVA results
+                print('\t'.join([var, str(anova.nobs_t), str(anova.df_num), format(
+                    anova.statistic, ".3f"), bonferroni_mark(anova.pvalue, bonferroni_corr)]), file=output_file)
+                # print the note about bonferroni correction
+            print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+        else:
+            print("Not enough data for simple ANOVA", file=output_file)
         output_file.write("\n")
 
         self.log_with_time("Tukey post-hoc analysis")
@@ -383,36 +388,39 @@ class Analyzer:
         # Header for the Student's t-test analysis
         self.log_with_time("3. Student's t-test")
         print("3. Student's t-test", file=output_file)
-        print("\tStudent's t-test", file=output_file)
-        print('\t'.join(['Variable'] + variables), file=output_file)
+        if groupedtable_filtered:
+            print("\tStudent's t-test", file=output_file)
+            print('\t'.join(['Variable'] + variables), file=output_file)
 
-        # Iteration of all pairs of groups
-        for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
-            try:
-                # makes two lists of statistics and p-values with entries for each variable
-                statistics, pvalues = ttest_ind(group1_table[sorted(
-                    variables)], group2_table[variables], nan_policy='omit')
-            except FloatingPointError:
-                print("Error: Invalid data for the Student's t-test", file=output_file)
-                warnings.warn(
-                        "Floating point error in the Student's t-test", category=RuntimeWarning)
-                break
-            # compose label for the current Student's test
-            # for example:
-            # species1 - species2
-            # or:
-            # species1, locality1 - species2, locality2
-            row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
-                    ' - ' + (', '.join(group2_lbl)
-                            if isinstance(group2_lbl, tuple) else group2_lbl)
-                    # makes a row of
-            # statistic(var1), pvalue(var1)<Tab>...
-            row_content = '\t'.join(
-                    f"t = {statistic:.3f}; P = {bonferroni_mark(pvalue, bonferroni_corr)}" for statistic, pvalue in zip(statistics, pvalues))
-            print(row_label, row_content, sep='\t', file=output_file)
+            # Iteration of all pairs of groups
+            for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
+                try:
+                    # makes two lists of statistics and p-values with entries for each variable
+                    statistics, pvalues = ttest_ind(group1_table[sorted(
+                        variables)], group2_table[variables], nan_policy='omit')
+                except FloatingPointError:
+                    print("Error: Invalid data for the Student's t-test", file=output_file)
+                    warnings.warn(
+                            "Floating point error in the Student's t-test", category=RuntimeWarning)
+                    break
+                # compose label for the current Student's test
+                # for example:
+                # species1 - species2
+                # or:
+                # species1, locality1 - species2, locality2
+                row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
+                        ' - ' + (', '.join(group2_lbl)
+                                if isinstance(group2_lbl, tuple) else group2_lbl)
+                        # makes a row of
+                # statistic(var1), pvalue(var1)<Tab>...
+                row_content = '\t'.join(
+                        f"t = {statistic:.3f}; P = {bonferroni_mark(pvalue, bonferroni_corr)}" for statistic, pvalue in zip(statistics, pvalues))
+                print(row_label, row_content, sep='\t', file=output_file)
 
-        # Prints a note about the bonferroni correction
-        print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+            # Prints a note about the bonferroni correction
+            print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+        else:
+            print("Not enough data for Student's t-test", file=output_file)
         output_file.write('\n')
 
         self.log_with_time("4. Median Analysis")
@@ -428,9 +436,7 @@ class Analyzer:
         # After the loop the note about Bonferroni correction is written
         self.log_with_time("5. Kruskal-Wallis ANOVA")
         print("5. Kruskal-Wallis ANOVA", file=output_file)
-        if len(groupedtable_filtered.groups) < 2: 
-            print("Not enough data for Kruskal-Wallis ANOVA", file=output_file)
-        else:
+        if groupedtable_filtered:
             print("Variable", "N valid cases",
                     "P (significance)", sep='\t', file=output_file)
             for var in variables:
@@ -439,6 +445,8 @@ class Analyzer:
                 print(var, f"H() = {statistic:.3f}",
                         f"p = {bonferroni_mark(pvalue, bonferroni_corr)}", sep='\t', file=output_file)
                 print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+        else:
+            print("Not enough data for Kruskal-Wallis ANOVA", file=output_file)
         output_file.write('\n')
 
         # Two output tables need to be written but since the output file can only be written sequentially,
@@ -452,39 +460,42 @@ class Analyzer:
 
         self.log_with_time("6. Mann-Whitney U tests")
         print("6. Mann-Whitney U tests", file=output_file)
-        print("U tests were implemented with continuity correction and two-tailed significances", file=output_file)
-        # the lines of the first table
-        full_table = []
-        # the lines of the second table
-        significance_table = []
-        for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
-            row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
-                    ' - ' + (', '.join(group2_lbl)
-                            if isinstance(group2_lbl, tuple) else group2_lbl)
-                    # Each table gets the same row label
-            full_table.append(row_label)
-            significance_table.append(row_label)
-            for var in variables:
-                u_val, pvalue = mannwhitneyu(
-                        group1_table[var], group2_table[var], alternative='two-sided')
-                # the first table gets both u_value and pvalue
-                full_table[-1] += f"\tU = {u_val:.3f}, P = {bonferroni_mark(pvalue, bonferroni_corr)}"
-                # the second table
-                significance_table[-1] += f"\tP = {bonferroni_mark(pvalue, bonferroni_corr)}"
+        if groupedtable_filtered:
+            print("U tests were implemented with continuity correction and two-tailed significances", file=output_file)
+            # the lines of the first table
+            full_table = []
+            # the lines of the second table
+            significance_table = []
+            for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
+                row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
+                        ' - ' + (', '.join(group2_lbl)
+                                if isinstance(group2_lbl, tuple) else group2_lbl)
+                        # Each table gets the same row label
+                full_table.append(row_label)
+                significance_table.append(row_label)
+                for var in variables:
+                    u_val, pvalue = mannwhitneyu(
+                            group1_table[var], group2_table[var], alternative='two-sided')
+                    # the first table gets both u_value and pvalue
+                    full_table[-1] += f"\tU = {u_val:.3f}, P = {bonferroni_mark(pvalue, bonferroni_corr)}"
+                    # the second table
+                    significance_table[-1] += f"\tP = {bonferroni_mark(pvalue, bonferroni_corr)}"
 
-        # print the first table
-        print("\tMann-Whitney U tests, full test statistics", file=output_file)
-        print("\t".join(["Variable"] + variables), file=output_file)
-        for row in full_table:
-            print(row, file=output_file)
-        output_file.write('\n')
-        # print the second table
-        print("\tMann-Whitney U tests, only significances (P)", file=output_file)
-        print("\t".join(["Variable"] + variables), file=output_file)
-        for row in significance_table:
-            print(row, file=output_file)
-        # print the note about the Bonferroni correction
-        print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+            # print the first table
+            print("\tMann-Whitney U tests, full test statistics", file=output_file)
+            print("\t".join(["Variable"] + variables), file=output_file)
+            for row in full_table:
+                print(row, file=output_file)
+            output_file.write('\n')
+            # print the second table
+            print("\tMann-Whitney U tests, only significances (P)", file=output_file)
+            print("\t".join(["Variable"] + variables), file=output_file)
+            for row in significance_table:
+                print(row, file=output_file)
+            # print the note about the Bonferroni correction
+            print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+        else:
+            print("Not enough data for Mann-Whitney U tests", file=output_file)
         output_file.write('\n')
 
         # For each variable, the specimens which are outlier with respect to this variable are first printed as a table row
