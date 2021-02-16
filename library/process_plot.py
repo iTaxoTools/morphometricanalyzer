@@ -114,7 +114,9 @@ class Plot:
             warnings.warn("Less than 2 PCA components have been calculated.\nPCA plot is not possible")
             return
 
-        for c1, c2 in ((1, 2), (2, 3), (3, 4)):
+        plot_pairs = ((i + 1, i + 2) for i in range(n_components - 1))
+
+        for c1, c2 in plot_pairs:
             fig = plt.figure(figsize = (8,8))
             ax = fig.add_subplot(1,1,1)
             ax.set_xlabel(f'Principal Component {c1}', fontsize = 15)

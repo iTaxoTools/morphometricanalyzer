@@ -24,6 +24,12 @@ logging.basicConfig(filename=os.path.join(
 
 def gui_main() -> None:
     root = tk.Tk()
+
+    def close_window():
+        root.destroy()
+        root.quit()
+
+    root.protocol("WM_DELETE_WINDOW", close_window)
     root.rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
     mainframe = ttk.Frame(root, padding=5)
@@ -117,6 +123,7 @@ def gui_main() -> None:
     mainframe.grid(row=0, column=0, sticky="nsew")
 
     root.mainloop()
+    root.quit()
 
 
 def main() -> None:
