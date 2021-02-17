@@ -119,7 +119,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
                 output_file.write("\n\n\n")
                 buf.seek(0, 0)
                 analyzer = Analyzer(buf, corrector.header_fixer.variables,
-                                    analyses_list, output_file, table_file, self.preview_dir)
+                                    analyses_list, table_file, self.preview_dir)
                 analyzer.set_size_var(self.size_var.get().casefold())
                 with warnings.catch_warnings(record=True) as warns:
                     analyzer.analyse()
@@ -205,6 +205,11 @@ class MorphometricAnalyzerGUI(ttk.Frame):
                                         orient='vertical', command=self.filelist.yview)
         self.filelist.configure(yscrollcommand=filelist_scroll.set)
         filelist_scroll.grid(row=0, column=1, sticky="nsew")
+
+        filelist_scroll_x = ttk.Scrollbar(filelist_frame,
+                                          orient='horizontal', command=self.filelist.xview)
+        self.filelist.configure(xscrollcommand=filelist_scroll_x.set)
+        filelist_scroll_x.grid(row=1, column=0, sticky="nsew")
 
         self.filelist.bind("<<TreeviewSelect>>", self.preview_selected)
 
