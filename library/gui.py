@@ -252,6 +252,8 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         if not self.filelist.selection():
             return
         selected_index = self.filelist.selection()[-1]
+        self.preview_frame.configure(
+            text=f'Preview - {self.filelist.item(selected_index, option="text")}')
         file_to_preview = os.path.join(
             self.preview_dir, self.filelist.item(selected_index, option="text"))
         TXT_EXTS = {".txt", ".tab", ".tsv", ".csv", ".log"}
