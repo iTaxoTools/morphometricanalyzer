@@ -28,6 +28,11 @@ def gui_main() -> None:
         root.destroy()
         root.quit()
 
+    root.title("Morphometricanalyzer")
+    if os.name == "nt":
+        root.wm_iconbitmap(os.path.join(
+            sys.path[0], 'morphometricanalyzer.ico'))
+
     root.protocol("WM_DELETE_WINDOW", close_window)
     root.rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
