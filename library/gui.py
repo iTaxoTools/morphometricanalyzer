@@ -1,13 +1,20 @@
 import os
 import sys
-from typing import Any
+import io
+import shutil
+import logging
+import warnings
+from typing import Any, Callable, Iterator
 
 import tkinter as tk
 import tkinter.ttk as ttk
 import tkinter.font as tkfont
 import tkinter.messagebox as tkmessagebox
+import tkinter.filedialog as tkfiledialog
 
 from library.gui_utils import AnalysesWidget
+from library.mistake_corrector import MistakeCorrector
+from library.analyses import Analyzer
 
 
 class MorphometricAnalyzerGUI(ttk.Frame):
@@ -32,12 +39,15 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         ttk.Separator(self, orient="horizontal").grid(
             row=1, column=0, columnspan=3, sticky="we")
 
+        self.input_file = tk.StringVar()
+        ttk.Entry(self, textvariable=self.input_file).grid(
+            row=2, column=0, columnspan=3, sticky="we")
+
         self.rowconfigure(3, weight=1)
         self.columnconfigure(2, weight=1)
         self.grid(row=0, column=0, sticky="nsew")
 
     def create_top_frame(self) -> None:
-
         top_frame = ttk.Frame(self, relief="sunken", padding=4)
         top_frame.columnconfigure(5, weight=1)
         top_frame.rowconfigure(0, weight=1)
@@ -48,15 +58,17 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         ttk.Separator(top_frame, orient="vertical").grid(
             row=0, column=1, sticky="nsew")
 
-        for image_key, image_file, text, column in (
-                ("open_button", "open.png", "open", 2),
-                ("save_button", "save.png", "save", 3),
-                ("save_all_button", "save_all.png", "save_all", 4),
-                ("run_button", "run.png", "run", 5)):
+        for image_key, image_file, text, column, command in (
+                ("open_button", "open.png", "open", 2, self.open_command),
+                ("save_button", "save.png", "save",
+                 3, self.save_command("selected")),
+                ("save_all_button", "save_all.png",
+                 "save_all", 4, self.save_command("all")),
+                ("run_button", "run.png", "run", 5, self.run_command)):
             self.images[image_key] = tk.PhotoImage(
                 file=os.path.join(sys.path[0], "data", image_file))
             ttk.Button(top_frame, text=text,
-                       image=self.images[image_key], compound="top", style="Toolbutton", padding=(10, 0)).grid(row=0, column=column, sticky="w")
+                       image=self.images[image_key], compound="top", style="Toolbutton", padding=(10, 0), command=command).grid(row=0, column=column, sticky="w")
 
         ttk.Separator(top_frame, orient="vertical").grid(
             row=0, column=6, sticky="nsew")
@@ -64,6 +76,79 @@ class MorphometricAnalyzerGUI(ttk.Frame):
             sys.path[0], "data", "iTaxoTools Digital linneaeus MICROLOGO.png"))
         ttk.Label(top_frame, image=self.images["logo"]).grid(
             row=0, column=7, sticky="nse")
+
+    def open_command(self) -> None:
+        path = tkfiledialog.askopenfilename()
+        if not path:
+            return
+        self.input_file.set(os.path.abspath(path))
+
+    def save_command(self, which: str) -> Callable[[], None]:
+        """
+        which should be either "all" or "selected"
+        """
+        def command():
+            save_folder = tkfiledialog.askdirectory()
+            if not save_folder:
+                return
+            for file in self.outfilenames(which):
+                full_filename = os.path.join(self.preview_dir, file)
+                shutil.copy(full_filename, save_folder)
+        return command
+
+    def run_command(self) -> None:
+        self.filelist.delete(*self.filelist.get_children())
+        self.preview.delete("1.0", "end")
+        input_file = self.input_file.get()
+        output_file = os.path.join(self.preview_dir, "output.txt")
+        table_file = os.path.join(self.preview_dir, "table.txt")
+        logging.info(f"Processing, input: {input_file}")
+        analyses_list = self.analyses_widget.get()
+        if not analyses_list:
+            tkmessagebox.showerror("Error", "No analyses were chosen")
+            return
+
+        try:
+            with open(input_file, errors='replace') as input_file, open(output_file, mode='w') as output_file, open(table_file, mode='w') as table_file:
+                corrector = MistakeCorrector(input_file)
+                buf = io.StringIO()
+                for line in corrector:
+                    print(line, file=buf)
+                corrector.report(output_file)
+                output_file.write("\n\n\n")
+                buf.seek(0, 0)
+                analyzer = Analyzer(buf, corrector.header_fixer.variables,
+                                    analyses_list, output_file, table_file, self.preview_dir)
+                analyzer.set_size_var(self.size_var.get().casefold())
+                with warnings.catch_warnings(record=True) as warns:
+                    analyzer.analyse()
+                    tkmessagebox.showwarning("Warning", '\n\n'.join(
+                        set(str(w.message) for w in warns)))
+                    self.fill_file_list()
+                    tkmessagebox.showinfo("Done", "All analyses are complete")
+                    logging.info("Processing successful\n")
+        except FileNotFoundError as ex:
+            logging.error(ex)
+            if ex.filename:
+                tkmessagebox.showerror("Error", str(ex))
+            else:
+                tkmessagebox.showerror(
+                    "Error", "One of the file names is empty.")
+            raise ex from ex
+        except Exception as ex:
+            logging.error(ex)
+            tkmessagebox.showerror("Error", str(ex))
+            raise ex from ex
+
+    def outfilenames(self, which: str) -> Iterator[str]:
+        if which == "all":
+            index_list = self.filelist.get_children()
+        elif which == "selected":
+            index_list = self.filelist.selection()
+        else:
+            raise ValueError(f"Don't know how to save {which}")
+        for index in index_list:
+            yield self.filelist.item(index, option="text")
 
     def create_parameters_frame(self) -> None:
         parameters_frame = ttk.LabelFrame(self, text="Parameters")
@@ -74,8 +159,8 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         ttk.Label(parameters_frame, text="Variable used for size standardization").grid(
             row=0, column=0, columnspan=2, sticky="w")
 
-        self.factor_var = tk.StringVar()
-        ttk.Entry(parameters_frame, textvariable=self.factor_var).grid(
+        self.size_var = tk.StringVar()
+        ttk.Entry(parameters_frame, textvariable=self.size_var).grid(
             row=1, column=0, sticky='we')
 
         ttk.Label(
