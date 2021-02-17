@@ -99,6 +99,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
     def run_command(self) -> None:
         self.filelist.delete(*self.filelist.get_children())
         self.preview.delete("1.0", "end")
+        self.preview_frame.configure(text="Preview")
         input_file = self.input_file.get()
         output_file = os.path.join(self.preview_dir, "output.txt")
         table_file = os.path.join(self.preview_dir, "table.txt")
@@ -252,6 +253,8 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         if not self.filelist.selection():
             return
         selected_index = self.filelist.selection()[-1]
+        self.preview_frame.configure(
+            text=f'Preview - {self.filelist.item(selected_index, option="text")}')
         file_to_preview = os.path.join(
             self.preview_dir, self.filelist.item(selected_index, option="text"))
         TXT_EXTS = {".txt", ".tab", ".tsv", ".csv", ".log"}
