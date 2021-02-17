@@ -120,21 +120,6 @@ def tukeyhsd_analysis(table: pd.DataFrame, variables: List[str], analysis: List[
     output_file.write("\n")
 
 
-def analyse(buf: TextIO, output_file: TextIO, variables: List[str], analyses: List[List[str]]) -> None:
-    """
-    Performs statistical analyses on the table in buf and writes the results into output_file
-
-    variables contains the column names that contains the variables to analyse
-
-    analyses is a list of lists, each of which describe which column to group by
-    """
-    table = pd.read_table(buf, index_col='specimenid', usecols=(
-        ['specimenid', 'species', 'sex', 'locality'] + variables))
-    for analysis in analyses:
-        do_analysis(table, variables, analysis, output_file)
-        output_file.write("\n")
-
-
 def bonferroni_note(count: int, corr: float) -> str:
     return f"Note: Applying a Bonferroni correction to the {count} separate ANOVA analyses(one for each of {count} measurements) reduced the significance level of 0.05 to {format_pvalue(corr)}. P values below 0.05 but larger than the Bonferroni corrected significance level are marked with §. P values that stay significant after applying the Bonferroni correction(values < Bonferroni-corrected significance level) are marked with an asterisk."
 
@@ -190,7 +175,7 @@ class Analyzer:
     This class contains all the parameters for analysis
     """
 
-    def __init__(self, buf: TextIO, variables: List[str], analyses: List[List[str]], output_file: TextIO, table_file: TextIO, output_dir: str):
+    def __init__(self, buf: TextIO, variables: List[str], analyses: List[List[str]], table_file: TextIO, output_dir: str):
         """
         buf - buffer containing the data table
         variables - list of the names of fields that should be regarded as variables
@@ -201,13 +186,24 @@ class Analyzer:
         self.table = pd.read_table(buf, index_col='specimenid', usecols=(
             ['specimenid', 'species', 'sex', 'locality'] + variables + ['remark']), dtype={'remark': 'string'})
         self.table['remark'].fillna("", inplace=True)
-        self.output_file = output_file
         self.table_file = table_file
         self.analyses = analyses
         self.variables = variables
         self.size_var: Optional[str] = None
         self.start_time = time.monotonic()
+        self.output_dir = output_dir
         self.plotter = Plot(output_dir)
+
+    def output_file(self, normalized: bool, analysis: Optional[List[str]], name: str) -> TextIO:
+        maybe_normalized = "_normalized_" if normalized else ""
+        if analysis:
+            filename = f'{name}{maybe_normalized}_for_{"-".join(analysis)}.txt'
+        else:
+            filename = f'{name}{maybe_normalized}.txt'
+        full_filename = os.path.join(self.output_dir, filename)
+        return open(full_filename, mode="w")
+
+
 
     def log_with_time(self, message: str) -> None:
         time_passed = time.monotonic() - self.start_time
@@ -270,49 +266,50 @@ class Analyzer:
             self.log_with_time("Uncorrected analysis")
             # copy of self.table with remarks specific to the current grouping
             remarked_table = self.do_analysis(
-                self.table.copy(), self.variables, analysis, self.output_file)  # results of non-normalized analyses are written to the output file
+                self.table.copy(), self.variables, analysis, normalized=False)  # results of non-normalized analyses are written to the output file
 
             # write the remarked table to the table file
-            self.output_file.write("\n")
             remarked_table.to_csv(
                 self.table_file, sep='\t', line_terminator='\n')
             self.table_file.write('\n')
 
             # results of normalized analyses are written to the output file
-            self.output_file.write("Size corrected analysis\n")
             self.log_with_time("Size corrected analysis")
             # copy of size_corr_table with remarks
             size_corr_table_remarked = self.do_analysis(
-                size_corr_table.copy(), size_corr_variables, analysis, self.output_file)
-            print("Linear discriminant analysis.", file=self.output_file)
+                size_corr_table.copy(), size_corr_variables, analysis, normalized=True)
 
             # write the remarked normalized table to the table file
             size_corr_table_remarked.to_csv(
                 self.table_file, sep='\t', line_terminator='\n')
 
-            self.log_with_time("Linear Discriminant analysis")
-            # The result of Linear Discriminant analysis on normalized variables is written to the output file
-            self.write_lda(size_corr_table, size_corr_variables,
-                      analysis, self.output_file)
+            with self.output_file(normalized=True, analysis=analysis, name="LDA") as output_file:
+                print("Linear discriminant analysis.", file=output_file)
+                self.log_with_time("Linear Discriminant analysis")
+                # The result of Linear Discriminant analysis on normalized variables is written to the output file
+                self.write_lda(size_corr_table, size_corr_variables,
+                          analysis, output_file)
 
         # The result of Principal Component analysis on normalized variables is written to the output file
-        self.log_with_time("Principal component analysis")
-        print("Principal component analysis.", file=self.output_file)
-        self.write_pca(size_corr_table, size_corr_variables, self.output_file)
+        with self.output_file(normalized=False, analysis=None, name="PCA") as output_file:
+            self.log_with_time("Principal component analysis")
+            print("Principal component analysis.", file=output_file)
+            self.write_pca(size_corr_table, size_corr_variables, output_file)
 
         self.log_with_time("Diagnoses")
-        print("Diagnoses.", file=self.output_file)
+        with self.output_file(normalized=False, analysis=None, name="Diagnoses") as output_file:
+            print("Diagnoses.", file=output_file)
 
-        # insert size_var back into the normalized table to enable comparison of species with respect to it
-        size_corr_table.insert(loc=3, column=size_var,
-                               value=self.table[size_var])
-        # searches for instances of pairs of species with non-overlapping ranges in some variable and displays them in the output file
-        order_species_ranges(
-            size_corr_table, [size_var] + size_corr_variables, self.output_file)
+            # insert size_var back into the normalized table to enable comparison of species with respect to it
+            size_corr_table.insert(loc=3, column=size_var,
+                                   value=self.table[size_var])
+            # searches for instances of pairs of species with non-overlapping ranges in some variable and displays them in the output file
+            order_species_ranges(
+                size_corr_table, [size_var] + size_corr_variables, output_file)
         self.log_with_time("Analysis completed")
 
 
-    def do_analysis(self, table: pd.DataFrame, variables: List[str], analysis: List[str], output_file: TextIO) -> pd.DataFrame:
+    def do_analysis(self, table: pd.DataFrame, variables: List[str], analysis: List[str], normalized: bool) -> pd.DataFrame:
         """
         Performs statistical analyses on the table and writes the results into output_file
 
@@ -334,11 +331,12 @@ class Analyzer:
         bonferroni_corr = 0.05 / len(variables)
 
         self.log_with_time("1. Mean Analysis")
-        print("1. Mean Analysis", file=output_file)
-        for result in mean_analysis(groupedtable, variables):
-            result.to_csv(output_file, float_format="%.3f",
-                    sep='\t', line_terminator='\n')
-            output_file.write("\n")
+        with self.output_file(normalized, analysis, "Mean_analysis") as output_file:
+            print("1. Mean Analysis", file=output_file)
+            for result in mean_analysis(groupedtable, variables):
+                result.to_csv(output_file, float_format="%.3f",
+                        sep='\t', line_terminator='\n')
+                output_file.write("\n")
 
         # Here anova_analysis is used as a wrapper for anova_oneway from statsmodel.
         # For each variable, ANOVA analysis is performed on the corresponding column,
@@ -347,34 +345,35 @@ class Analyzer:
         # The tuple is then used to construct of the output table.
         # After the loop the note about Bonferroni correction is printed
 
-        # Header for the ANOVA analysis
-        self.log_with_time("2. Simple ANOVA")
-        print("2. Simple ANOVA", file=output_file)
-        if groupedtable_filtered:
-            print('\t'.join(["Variable", "N valid cases", "Degrees of Freedom",
-            "F-value", "P (Significance)"]), file=output_file)
+        with self.output_file(normalized, analysis, "Simple_ANOVA") as output_file:
+            # Header for the ANOVA analysis
+            self.log_with_time("2. Simple ANOVA")
+            print("2. Simple ANOVA", file=output_file)
+            if groupedtable_filtered:
+                print('\t'.join(["Variable", "N valid cases", "Degrees of Freedom",
+                "F-value", "P (Significance)"]), file=output_file)
 
-            for var in variables:
-                try:
-                    # contains the result of anova_oneway
-                    anova = anova_analysis(groupedtable_filtered, var)
-                except FloatingPointError:
-                    print("Error: Invalid data for simple ANOVA", file=output_file)
-                    warnings.warn("Floating point error in simple ANOVA",
-                            RuntimeWarning)
-                    break
-                # print a line for var with ANOVA results
-                print('\t'.join([var, str(anova.nobs_t), str(anova.df_num), format(
-                    anova.statistic, ".3f"), bonferroni_mark(anova.pvalue, bonferroni_corr)]), file=output_file)
-                # print the note about bonferroni correction
-            print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
-        else:
-            print("Not enough data for simple ANOVA", file=output_file)
-        output_file.write("\n")
+                for var in variables:
+                    try:
+                        # contains the result of anova_oneway
+                        anova = anova_analysis(groupedtable_filtered, var)
+                    except FloatingPointError:
+                        print("Error: Invalid data for simple ANOVA", file=output_file)
+                        warnings.warn("Floating point error in simple ANOVA",
+                                RuntimeWarning)
+                        break
+                    # print a line for var with ANOVA results
+                    print('\t'.join([var, str(anova.nobs_t), str(anova.df_num), format(
+                        anova.statistic, ".3f"), bonferroni_mark(anova.pvalue, bonferroni_corr)]), file=output_file)
+                    # print the note about bonferroni correction
+                print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+            else:
+                print("Not enough data for simple ANOVA", file=output_file)
+            output_file.write("\n")
 
-        self.log_with_time("Tukey post-hoc analysis")
-        # tukeyhsd_analysis perform the Tukey analysis and write the result into the output file
-        tukeyhsd_analysis(table, variables, analysis, output_file)
+            self.log_with_time("Tukey post-hoc analysis")
+            # tukeyhsd_analysis perform the Tukey analysis and write the result into the output file
+            tukeyhsd_analysis(table, variables, analysis, output_file)
 
         # Student's t-test is performed on pairs of subtables for grouping label
         # For each pair the t-test return two Iterable for statistic values and pvalues
@@ -385,69 +384,72 @@ class Analyzer:
         # The note about Bonferroni correction is printed after the table
         # uses ttest_ind from scipy.stats
 
-        # Header for the Student's t-test analysis
-        self.log_with_time("3. Student's t-test")
-        print("3. Student's t-test", file=output_file)
-        if groupedtable_filtered:
-            print("\tStudent's t-test", file=output_file)
-            print('\t'.join(['Variable'] + variables), file=output_file)
+        with self.output_file(normalized, analysis, "Students_t_test") as output_file:
+            # Header for the Student's t-test analysis
+            self.log_with_time("3. Student's t-test")
+            print("3. Student's t-test", file=output_file)
+            if groupedtable_filtered:
+                print("\tStudent's t-test", file=output_file)
+                print('\t'.join(['Variable'] + variables), file=output_file)
 
-            # Iteration of all pairs of groups
-            for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
-                try:
-                    # makes two lists of statistics and p-values with entries for each variable
-                    statistics, pvalues = ttest_ind(group1_table[sorted(
-                        variables)], group2_table[variables], nan_policy='omit')
-                except FloatingPointError:
-                    print("Error: Invalid data for the Student's t-test", file=output_file)
-                    warnings.warn(
-                            "Floating point error in the Student's t-test", category=RuntimeWarning)
-                    break
-                # compose label for the current Student's test
-                # for example:
-                # species1 - species2
-                # or:
-                # species1, locality1 - species2, locality2
-                row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
-                        ' - ' + (', '.join(group2_lbl)
-                                if isinstance(group2_lbl, tuple) else group2_lbl)
-                        # makes a row of
-                # statistic(var1), pvalue(var1)<Tab>...
-                row_content = '\t'.join(
-                        f"t = {statistic:.3f}; P = {bonferroni_mark(pvalue, bonferroni_corr)}" for statistic, pvalue in zip(statistics, pvalues))
-                print(row_label, row_content, sep='\t', file=output_file)
+                # Iteration of all pairs of groups
+                for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
+                    try:
+                        # makes two lists of statistics and p-values with entries for each variable
+                        statistics, pvalues = ttest_ind(group1_table[sorted(
+                            variables)], group2_table[variables], nan_policy='omit')
+                    except FloatingPointError:
+                        print("Error: Invalid data for the Student's t-test", file=output_file)
+                        warnings.warn(
+                                "Floating point error in the Student's t-test", category=RuntimeWarning)
+                        break
+                    # compose label for the current Student's test
+                    # for example:
+                    # species1 - species2
+                    # or:
+                    # species1, locality1 - species2, locality2
+                    row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
+                            ' - ' + (', '.join(group2_lbl)
+                                    if isinstance(group2_lbl, tuple) else group2_lbl)
+                            # makes a row of
+                    # statistic(var1), pvalue(var1)<Tab>...
+                    row_content = '\t'.join(
+                            f"t = {statistic:.3f}; P = {bonferroni_mark(pvalue, bonferroni_corr)}" for statistic, pvalue in zip(statistics, pvalues))
+                    print(row_label, row_content, sep='\t', file=output_file)
 
-            # Prints a note about the bonferroni correction
-            print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
-        else:
-            print("Not enough data for Student's t-test", file=output_file)
-        output_file.write('\n')
+                # Prints a note about the bonferroni correction
+                print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+            else:
+                print("Not enough data for Student's t-test", file=output_file)
+            output_file.write('\n')
 
-        self.log_with_time("4. Median Analysis")
-        print("4. Median Analysis", file=output_file)
-        for result in median_analysis(groupedtable, variables):
-            result.to_csv(output_file, float_format="%.3f",
-                    sep='\t', line_terminator='\n')
-            output_file.write("\n")
+        with self.output_file(normalized, analysis, "Median_analysis") as output_file:
+            self.log_with_time("4. Median Analysis")
+            print("4. Median Analysis", file=output_file)
+            for result in median_analysis(groupedtable, variables):
+                result.to_csv(output_file, float_format="%.3f",
+                        sep='\t', line_terminator='\n')
+                output_file.write("\n")
 
         # For each variable Kruskal-Wallis analysis is performed on the groups of values in the corresponding column
         # It return a statistic value and a pvalue,
         # which are then printed with the variable name as a table row
         # After the loop the note about Bonferroni correction is written
-        self.log_with_time("5. Kruskal-Wallis ANOVA")
-        print("5. Kruskal-Wallis ANOVA", file=output_file)
-        if groupedtable_filtered:
-            print("Variable", "N valid cases",
-                    "P (significance)", sep='\t', file=output_file)
-            for var in variables:
-                statistic, pvalue = kruskal(
-                        *(values for _, values in groupedtable_filtered[var]), nan_policy='omit')
-                print(var, f"H() = {statistic:.3f}",
-                        f"p = {bonferroni_mark(pvalue, bonferroni_corr)}", sep='\t', file=output_file)
-                print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
-        else:
-            print("Not enough data for Kruskal-Wallis ANOVA", file=output_file)
-        output_file.write('\n')
+        with self.output_file(normalized, analysis, "Kruskal_Wallis_ANOVA") as output_file:
+            self.log_with_time("5. Kruskal-Wallis ANOVA")
+            print("5. Kruskal-Wallis ANOVA", file=output_file)
+            if groupedtable_filtered:
+                print("Variable", "N valid cases",
+                        "P (significance)", sep='\t', file=output_file)
+                for var in variables:
+                    statistic, pvalue = kruskal(
+                            *(values for _, values in groupedtable_filtered[var]), nan_policy='omit')
+                    print(var, f"H() = {statistic:.3f}",
+                            f"p = {bonferroni_mark(pvalue, bonferroni_corr)}", sep='\t', file=output_file)
+                    print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+            else:
+                print("Not enough data for Kruskal-Wallis ANOVA", file=output_file)
+            output_file.write('\n')
 
         # Two output tables need to be written but since the output file can only be written sequentially,
         # the lines of the tables are temporarily stored in two lists of strings
@@ -458,114 +460,117 @@ class Analyzer:
         # Finally, the note about the Bonferroni correction is printed
         # uses mannwhitneyu from scipy.stats
 
-        self.log_with_time("6. Mann-Whitney U tests")
-        print("6. Mann-Whitney U tests", file=output_file)
-        if groupedtable_filtered:
-            print("U tests were implemented with continuity correction and two-tailed significances", file=output_file)
-            # the lines of the first table
-            full_table = []
-            # the lines of the second table
-            significance_table = []
-            for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
-                row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
-                        ' - ' + (', '.join(group2_lbl)
-                                if isinstance(group2_lbl, tuple) else group2_lbl)
-                        # Each table gets the same row label
-                full_table.append(row_label)
-                significance_table.append(row_label)
-                for var in variables:
-                    u_val, pvalue = mannwhitneyu(
-                            group1_table[var], group2_table[var], alternative='two-sided')
-                    # the first table gets both u_value and pvalue
-                    full_table[-1] += f"\tU = {u_val:.3f}, P = {bonferroni_mark(pvalue, bonferroni_corr)}"
-                    # the second table
-                    significance_table[-1] += f"\tP = {bonferroni_mark(pvalue, bonferroni_corr)}"
+        with self.output_file(normalized, analysis, "Mann_Whitney_u_test") as output_file:
+            self.log_with_time("6. Mann-Whitney U tests")
+            print("6. Mann-Whitney U tests", file=output_file)
+            if groupedtable_filtered:
+                print("U tests were implemented with continuity correction and two-tailed significances", file=output_file)
+                # the lines of the first table
+                full_table = []
+                # the lines of the second table
+                significance_table = []
+                for ((group1_lbl, group1_table), (group2_lbl, group2_table)) in itertools.combinations(groupedtable_filtered, 2):
+                    row_label = (', '.join(group1_lbl) if isinstance(group1_lbl, tuple) else group1_lbl) + \
+                            ' - ' + (', '.join(group2_lbl)
+                                    if isinstance(group2_lbl, tuple) else group2_lbl)
+                            # Each table gets the same row label
+                    full_table.append(row_label)
+                    significance_table.append(row_label)
+                    for var in variables:
+                        u_val, pvalue = mannwhitneyu(
+                                group1_table[var], group2_table[var], alternative='two-sided')
+                        # the first table gets both u_value and pvalue
+                        full_table[-1] += f"\tU = {u_val:.3f}, P = {bonferroni_mark(pvalue, bonferroni_corr)}"
+                        # the second table
+                        significance_table[-1] += f"\tP = {bonferroni_mark(pvalue, bonferroni_corr)}"
 
-            # print the first table
-            print("\tMann-Whitney U tests, full test statistics", file=output_file)
-            print("\t".join(["Variable"] + variables), file=output_file)
-            for row in full_table:
-                print(row, file=output_file)
+                # print the first table
+                print("\tMann-Whitney U tests, full test statistics", file=output_file)
+                print("\t".join(["Variable"] + variables), file=output_file)
+                for row in full_table:
+                    print(row, file=output_file)
+                output_file.write('\n')
+                # print the second table
+                print("\tMann-Whitney U tests, only significances (P)", file=output_file)
+                print("\t".join(["Variable"] + variables), file=output_file)
+                for row in significance_table:
+                    print(row, file=output_file)
+                # print the note about the Bonferroni correction
+                print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
+            else:
+                print("Not enough data for Mann-Whitney U tests", file=output_file)
             output_file.write('\n')
-            # print the second table
-            print("\tMann-Whitney U tests, only significances (P)", file=output_file)
-            print("\t".join(["Variable"] + variables), file=output_file)
-            for row in significance_table:
-                print(row, file=output_file)
-            # print the note about the Bonferroni correction
-            print(bonferroni_note(len(variables), bonferroni_corr), file=output_file)
-        else:
-            print("Not enough data for Mann-Whitney U tests", file=output_file)
-        output_file.write('\n')
 
         # For each variable, the specimens which are outlier with respect to this variable are first printed as a table row
         # then they are collected into the dictionary mapping each specimen id to the variable in which it's a outlier
         # After the loop over the variable this dictionary is used to construct remarks in the data table
-        self.log_with_time("7. Outliers")
-        print("7. Outliers", file=output_file)
-        print("The following outlier values have been identified. These may simply indicate specimens with morphometric peculiarities, but could also be measurement or data transformation errors. Please check them carefully!", file=output_file)
+        with self.output_file(normalized, analysis, "Outliers") as output_file:
+            self.log_with_time("7. Outliers")
+            print("7. Outliers", file=output_file)
+            print("The following outlier values have been identified. These may simply indicate specimens with morphometric peculiarities, but could also be measurement or data transformation errors. Please check them carefully!", file=output_file)
 
-        def is_outlier(col: pd.Series) -> pd.Series:
-            """
-            Takes a column of values and return a column of Booleans with True marking the outliers
-            """
-            q3 = col.quantile(0.75)
-            q1 = col.quantile(0.25)
-            iqr = q3 - q1
-            return (col > (q3 + 1.5 * iqr)).combine(col < (q1 - 1.5 * iqr), lambda x, y: x or y)
+            def is_outlier(col: pd.Series) -> pd.Series:
+                """
+                Takes a column of values and return a column of Booleans with True marking the outliers
+                """
+                q3 = col.quantile(0.75)
+                q1 = col.quantile(0.25)
+                iqr = q3 - q1
+                return (col > (q3 + 1.5 * iqr)).combine(col < (q1 - 1.5 * iqr), lambda x, y: x or y)
 
-        specimen_with_outliers: Dict[str, List[str]] = {}
-        for var in variables:
-            outlier_specimen = [specimenid for specimenid,
-                    cond in groupedtable[var].transform(is_outlier).items() if cond]
-            if outlier_specimen:
-                # print the row of the outlier table
-                print(f"{var}:", ', '.join(
-                    f"{specimenid} ({table[var][specimenid]})" for specimenid in outlier_specimen), file=output_file)
+            specimen_with_outliers: Dict[str, List[str]] = {}
+            for var in variables:
+                outlier_specimen = [specimenid for specimenid,
+                        cond in groupedtable[var].transform(is_outlier).items() if cond]
+                if outlier_specimen:
+                    # print the row of the outlier table
+                    print(f"{var}:", ', '.join(
+                        f"{specimenid} ({table[var][specimenid]})" for specimenid in outlier_specimen), file=output_file)
 
-                # add the variable to the outlier dictionary
-                for specimenid in outlier_specimen:
-                    specimen_with_outliers[specimenid] = specimen_with_outliers.setdefault(
-                            specimenid, []) + [var]
-                    # write remarks about outliers to the data table
-        if specimen_with_outliers:
-            for specimenid, outlier_vars in specimen_with_outliers.items():
-                remark: str = str(table['remark'][specimenid])
-                table['remark'][specimenid] = (remark + "; " if remark else "") + \
-                        f"Row contains outlier values ({', '.join(outlier_vars)})"
+                    # add the variable to the outlier dictionary
+                    for specimenid in outlier_specimen:
+                        specimen_with_outliers[specimenid] = specimen_with_outliers.setdefault(
+                                specimenid, []) + [var]
+                        # write remarks about outliers to the data table
+            if specimen_with_outliers:
+                for specimenid, outlier_vars in specimen_with_outliers.items():
+                    remark: str = str(table['remark'][specimenid])
+                    table['remark'][specimenid] = (remark + "; " if remark else "") + \
+                            f"Row contains outlier values ({', '.join(outlier_vars)})"
+            output_file.write('\n')
 
         # relabels the table index from specimenid to specimenid_species
         table_with_species = table.rename(
                 index=(lambda specimen: table['species'][specimen].replace(' ', '_')+'_'+specimen))
-        output_file.write('\n')
 
         # Next two parts construct tables with distances
         # Each use squareform and pdist from scipy.spatial to construct the table of distance
         # Then blank_upper_triangle function removes the values above the diagonal
         # Then the index and column labels are added from the data table
         # Finally, the distance table is printed
-        self.log_with_time("8. Euclidean distance")
-        print("8. Euclidean distance", file=output_file)
-        eucl_dist = pd.DataFrame(
-                blank_upper_triangle(squareform(pdist(table_with_species[variables]))),
-                index=table_with_species.index,
-                columns=table_with_species.index
-                )
-        eucl_dist.to_csv(output_file, sep="\t",
-                float_format="%.2f", line_terminator="\n")
-        output_file.write('\n')
+        with self.output_file(normalized, analysis, "Distances") as output_file:
+            self.log_with_time("8. Euclidean distance")
+            print("8. Euclidean distance", file=output_file)
+            eucl_dist = pd.DataFrame(
+                    blank_upper_triangle(squareform(pdist(table_with_species[variables]))),
+                    index=table_with_species.index,
+                    columns=table_with_species.index
+                    )
+            eucl_dist.to_csv(output_file, sep="\t",
+                    float_format="%.2f", line_terminator="\n")
+            output_file.write('\n')
 
-        self.log_with_time("9. Cosine distance")
-        print("9. Cosine distance", file=output_file)
-        eucl_dist = pd.DataFrame(
-                blank_upper_triangle(squareform(
-                    pdist(table_with_species[variables], metric='cosine'))),
-                index=table_with_species.index,
-                columns=table_with_species.index
-                )
-        eucl_dist.to_csv(output_file, sep="\t",
-                float_format="%.2f", line_terminator="\n")
-        output_file.write('\n')
+            self.log_with_time("9. Cosine distance")
+            print("9. Cosine distance", file=output_file)
+            eucl_dist = pd.DataFrame(
+                    blank_upper_triangle(squareform(
+                        pdist(table_with_species[variables], metric='cosine'))),
+                    index=table_with_species.index,
+                    columns=table_with_species.index
+                    )
+            eucl_dist.to_csv(output_file, sep="\t",
+                    float_format="%.2f", line_terminator="\n")
+            output_file.write('\n')
 
         # return the data table with remarks
         return table
