@@ -323,7 +323,7 @@ class Analyzer:
         groupedtable = table.groupby(analysis) if analysis else table
 
         # make table with groups >= 2 for some analyses
-        small_groups = groupedtable.transform(lambda group: group.count() < 2).iloc[:, 0]
+        small_groups = groupedtable.transform(lambda group: group.count() >= 2).iloc[:, 0]
         groupedtable_filtered = table.loc[small_groups].groupby(analysis) if analysis else table.loc[small_groups]
         if len(groupedtable_filtered.groups) < 2:
             groupedtable_filtered = None
