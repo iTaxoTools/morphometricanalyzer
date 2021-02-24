@@ -159,7 +159,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         parameters_frame.rowconfigure(5, weight=1)
         parameters_frame.columnconfigure(0, weight=1)
 
-        ttk.Label(parameters_frame, text="Variable used for size standardization").grid(
+        ttk.Label(parameters_frame, text="Variable used for size correction (calculation of ratios to adjust for size)").grid(
             row=0, column=0, columnspan=2, sticky="w")
 
         self.size_var = tk.StringVar()
