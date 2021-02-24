@@ -11,6 +11,7 @@ import numpy.ma as ma
 import pandas as pd
 from scipy.spatial.distance import pdist, squareform
 from scipy.stats import kruskal, mannwhitneyu, ttest_ind
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from statsmodels.stats.base import HolderTuple
@@ -290,6 +291,9 @@ class Analyzer:
                 self.write_lda(size_corr_table, size_corr_variables,
                           analysis, output_file)
 
+        # reinsert size_var back into the normalized table for the remaining analyses 
+        size_corr_table.insert(loc=3, column=size_var,
+                               value=self.table[size_var])
         # The result of Principal Component analysis on normalized variables is written to the output file
         with self.output_file(normalized=False, analysis=None, name="PCA") as output_file:
             self.log_with_time("Principal component analysis")
@@ -300,9 +304,6 @@ class Analyzer:
         with self.output_file(normalized=False, analysis=None, name="Diagnoses") as output_file:
             print("Diagnoses.", file=output_file)
 
-            # insert size_var back into the normalized table to enable comparison of species with respect to it
-            size_corr_table.insert(loc=3, column=size_var,
-                                   value=self.table[size_var])
             # searches for instances of pairs of species with non-overlapping ranges in some variable and displays them in the output file
             order_species_ranges(
                 size_corr_table, [size_var] + size_corr_variables, output_file)
@@ -620,7 +621,8 @@ class Analyzer:
         RETAINED_VARIANCE = 0.75
         MAX_PC = 6
         pca = PCA()
-        principal_components = pca.fit_transform(table[variables])
+        scaled_table = MinMaxScaler().fit_transform(table[variables])
+        principal_components = pca.fit_transform(scaled_table)
         explained_variance = 0
         for i, variance in enumerate(pca.explained_variance_ratio_):
             explained_variance += variance
