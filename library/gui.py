@@ -102,7 +102,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         self.preview_frame.configure(text="Preview")
         input_file = self.input_file.get()
         output_file = os.path.join(self.preview_dir, "output.txt")
-        table_file = os.path.join(self.preview_dir, "table.txt")
+        table_file = os.path.join(self.preview_dir, "adjusted_data_table.txt")
         logging.info(f"Processing, input: {input_file}")
         analyses_list = self.analyses_widget.get()
         if not analyses_list:
@@ -126,6 +126,8 @@ class MorphometricAnalyzerGUI(ttk.Frame):
                     tkmessagebox.showwarning("Warning", '\n\n'.join(
                         set(str(w.message) for w in warns)))
                     self.fill_file_list()
+                    self.tab_notice.grid(
+                        row=5, column=0, columnspan=2, sticky='ws')
                     tkmessagebox.showinfo("Done", "All analyses are complete")
                     logging.info("Processing successful\n")
         except FileNotFoundError as ex:
@@ -157,7 +159,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         parameters_frame.rowconfigure(5, weight=1)
         parameters_frame.columnconfigure(0, weight=1)
 
-        ttk.Label(parameters_frame, text="Variable used for size standardization").grid(
+        ttk.Label(parameters_frame, text="Variable used for size correction (calculation of ratios to adjust for size)").grid(
             row=0, column=0, columnspan=2, sticky="w")
 
         self.size_var = tk.StringVar()
@@ -179,6 +181,9 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         self.analyses_widget.set_count(1)
         self.analyses_widget.frame.configure(relief="sunken", padding=3)
 
+        self.tab_notice = ttk.Label(
+            parameters_frame, text="All tables in the output are in tab-delimited text. For better visualization, import or copy-paste into a spreadsheet editor such as Microsoft Excel or OpenOffice Calc.", wraplength=320)
+
         ttk.Label(parameters_frame).grid(row=5, column=0)
 
     def set_num_analyses(self) -> None:
@@ -195,7 +200,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         filelist_frame = ttk.Labelframe(self, text="Files")
         filelist_frame.rowconfigure(0, weight=1)
         filelist_frame.columnconfigure(0, weight=1)
-        filelist_frame.grid(row=3, column=1, sticky="nsew")
+        filelist_frame.grid(row=3, column=1, rowspan=2, sticky="nsew")
 
         self.filelist = ttk.Treeview(filelist_frame,
                                      height=15, selectmode="extended", show="tree")
