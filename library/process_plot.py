@@ -81,7 +81,7 @@ class Plot:
                 ax.tick_params(axis="y", labelsize=10)
 
             plt.savefig(os.path.join(self.output_dir, col +
-                                     "_species_boxplot"+'.pdf'), transparent=True)
+                                     "_species_boxplot"+'.pdf'), transparent=True, bbox_inches='tight')
 
     def boxplot2(self, df: pd.DataFrame):
         xx = sorted(df['sex'].unique(), reverse=True)
@@ -97,7 +97,7 @@ class Plot:
                 ax.set_title(ax.get_title(),  fontsize=12)
                 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
             plt.savefig(os.path.join(self.output_dir, col +
-                                     "_sex_paired_boxplot"+'.pdf'), transparent=True)
+                                     "_sex_paired_boxplot"+'.pdf'), transparent=True, bbox_inches='tight')
 
     def pcaplot(self, df: pd.DataFrame):
         """
@@ -134,7 +134,7 @@ class Plot:
             ax.set_title(ax.get_title(), fontsize=20)
             ax.set_ylabel(ax.get_ylabel(), fontsize=18)
             ax.legend(loc= "best", prop=dict(size=15))
-            plt.savefig(os.path.join(self.output_dir, f"pca{c1}{c2}_plot"+'.pdf'), transparent=True)
+            plt.savefig(os.path.join(self.output_dir, f"pca{c1}{c2}_plot"+'.pdf'), transparent=True, bbox_inches='tight')
 
     def ldaplot(self, df: pd.DataFrame):
         """
@@ -168,4 +168,4 @@ class Plot:
         ax.set_title('2 Component LDA Plot', fontsize = 20)
         ax.legend(loc= "best", prop=dict(size=15))
 
-        plt.savefig(os.path.join(self.output_dir, f"{label}_lda_plot"+'.pdf'), transparent=True)
+        plt.savefig(os.path.join(self.output_dir, f"{label}_lda_plot"+'.pdf'), transparent=True, bbox_inches='tight')
