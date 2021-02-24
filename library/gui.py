@@ -102,7 +102,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         self.preview_frame.configure(text="Preview")
         input_file = self.input_file.get()
         output_file = os.path.join(self.preview_dir, "output.txt")
-        table_file = os.path.join(self.preview_dir, "table.txt")
+        table_file = os.path.join(self.preview_dir, "adjusted_data_table.txt")
         logging.info(f"Processing, input: {input_file}")
         analyses_list = self.analyses_widget.get()
         if not analyses_list:

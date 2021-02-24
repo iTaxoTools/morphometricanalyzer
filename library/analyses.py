@@ -195,7 +195,7 @@ class Analyzer:
         self.plotter = Plot(output_dir)
 
     def output_file(self, normalized: bool, analysis: Optional[List[str]], name: str) -> TextIO:
-        maybe_normalized = "_normalized_" if normalized else ""
+        maybe_normalized = "_size_corrected" if normalized else ""
         if analysis:
             filename = f'{name}{maybe_normalized}_for_{"-".join(analysis)}.txt'
         else:
