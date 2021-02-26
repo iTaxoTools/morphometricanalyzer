@@ -31,6 +31,9 @@ class MorphometricAnalyzerGUI(ttk.Frame):
             file=os.path.join(sys.path[0], "data/file-log.png"))
         self.preview_dir = preview_dir
 
+        # make directory for graph previews
+        os.mkdir(os.path.join(self.preview_dir, "graph_previews"))
+
         self.create_top_frame()
         self.create_parameters_frame()
         self.create_filelist_frame()
@@ -233,7 +236,10 @@ class MorphometricAnalyzerGUI(ttk.Frame):
             name, ext = os.path.splitext(name)
             return (ext, name)
 
-        for filename in sorted(os.listdir(self.preview_dir), key=by_ext):
+        files = sorted((file for file in os.listdir(
+            self.preview_dir) if file != "graph_previews"), key=by_ext)
+
+        for filename in files:
             name = os.path.basename(filename)
             img = self.icon_for_file(name)
             self.filelist.insert(parent="", index="end", text=name, image=img)
@@ -265,17 +271,20 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         selected_index = self.filelist.selection()[-1]
         self.preview_frame.configure(
             text=f'Preview - {self.filelist.item(selected_index, option="text")}')
-        file_to_preview = os.path.join(
-            self.preview_dir, self.filelist.item(selected_index, option="text"))
+        file_to_preview = self.filelist.item(selected_index, option="text")
+        full_file_to_preview = os.path.join(
+            self.preview_dir, file_to_preview)
         TXT_EXTS = {".txt", ".tab", ".tsv", ".csv", ".log"}
         IMG_EXTS = {".gif", ".png", ".pbm", ".pgm", ".ppm", ".pnm"}
         _, ext = os.path.splitext(file_to_preview)
         if ext in TXT_EXTS:
-            self.preview_txt(file_to_preview)
+            self.preview_txt(full_file_to_preview)
         elif ext in IMG_EXTS:
-            self.preview_img(file_to_preview)
+            self.preview_img(full_file_to_preview)
+        elif ext == ".pdf":
+            self.preview_pdf(file_to_preview)
         else:
-            self.no_preview(file_to_preview)
+            self.no_preview(full_file_to_preview)
 
     def preview_txt(self, filename) -> None:
         with open(filename) as file:
@@ -284,6 +293,14 @@ class MorphometricAnalyzerGUI(ttk.Frame):
     def preview_img(self, filename) -> None:
         self.images["current"] = tk.PhotoImage(file=filename)
         self.preview.image_create("1.0", image=self.images["current"])
+
+    def preview_pdf(self, filename) -> None:
+        name, _ = os.path.splitext(filename)
+        image_path = os.path.join(
+            self.preview_dir, "graph_previews", name + ".png")
+        self.images["current"] = tk.PhotoImage(file=image_path)
+        self.preview.insert("1.0", "Approximate preview.\n")
+        self.preview.image_create("2.0", image=self.images["current"])
 
     def no_preview(self, _) -> None:
         self.preview.insert("1.0", "Preview is not possible")

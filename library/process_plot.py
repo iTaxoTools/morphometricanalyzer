@@ -82,7 +82,7 @@ class Plot:
 
             g.savefig(os.path.join(self.output_dir, col +
                                      "_species_boxplot"+'.pdf'), transparent=True, bbox_inches='tight')
-            g.savefig(os.path.join(self.output_dir, col +
+            g.savefig(os.path.join(self.output_dir, "graph_previews", col +
                                      "_species_boxplot"+'.png'), transparent=True, bbox_inches='tight')
 
     def boxplot2(self, df: pd.DataFrame):
@@ -100,7 +100,7 @@ class Plot:
                 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
             g.savefig(os.path.join(self.output_dir, col +
                                      "_sex_paired_boxplot"+'.pdf'), transparent=True, bbox_inches='tight')
-            g.savefig(os.path.join(self.output_dir, col +
+            g.savefig(os.path.join(self.output_dir, "graph_previews", col +
                                      "_sex_paired_boxplot"+'.png'), transparent=True, bbox_inches='tight')
 
     def pcaplot(self, df: pd.DataFrame):
@@ -139,7 +139,7 @@ class Plot:
             ax.set_ylabel(ax.get_ylabel(), fontsize=18)
             ax.legend(loc= "best", prop=dict(size=15))
             fig.savefig(os.path.join(self.output_dir, f"pca{c1}{c2}_plot"+'.pdf'), transparent=True, bbox_inches='tight')
-            fig.savefig(os.path.join(self.output_dir, f"pca{c1}{c2}_plot"+'.png'), transparent=True, bbox_inches='tight')
+            fig.savefig(os.path.join(self.output_dir, "graph_previews",  f"pca{c1}{c2}_plot"+'.png'), transparent=True, bbox_inches='tight')
 
     def ldaplot(self, df: pd.DataFrame):
         """
@@ -174,4 +174,4 @@ class Plot:
         ax.legend(loc= "best", prop=dict(size=15))
 
         fig.savefig(os.path.join(self.output_dir, f"{label}_lda_plot"+'.pdf'), transparent=True, bbox_inches='tight')
-        fig.savefig(os.path.join(self.output_dir, f"{label}_lda_plot"+'.png'), transparent=True, bbox_inches='tight')
+        fig.savefig(os.path.join(self.output_dir, "graph_previews",  f"{label}_lda_plot"+'.png'), transparent=True, bbox_inches='tight')
