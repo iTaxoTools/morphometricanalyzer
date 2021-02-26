@@ -298,7 +298,7 @@ class Analyzer:
         with self.output_file(normalized=False, analysis=None, name="PCA") as output_file:
             self.log_with_time("Principal component analysis")
             print("Principal component analysis.", file=output_file)
-            self.write_pca(size_corr_table, size_corr_variables, output_file)
+            self.write_pca(size_corr_table, [size_var] + size_corr_variables, output_file)
 
         self.log_with_time("Diagnoses")
         with self.output_file(normalized=False, analysis=None, name="Diagnoses") as output_file:
@@ -619,6 +619,7 @@ class Analyzer:
 
     def write_pca(self, table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
         RETAINED_VARIANCE = 0.75
+        MIN_PC = 4
         MAX_PC = 6
         pca = PCA()
         scaled_table = MinMaxScaler().fit_transform(table[variables])
@@ -627,7 +628,7 @@ class Analyzer:
         for i, variance in enumerate(pca.explained_variance_ratio_):
             explained_variance += variance
             if explained_variance >= RETAINED_VARIANCE:
-                pca_components = max(i+1, 2)
+                pca_components = max(i+1, MIN_PC)
                 break
         else:
             pca_components = pca.n_components_
