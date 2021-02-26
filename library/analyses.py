@@ -300,6 +300,12 @@ class Analyzer:
             print("Principal component analysis.", file=output_file)
             self.write_pca(size_corr_table, [size_var] + size_corr_variables, output_file)
 
+        # PCA without scaling
+        with self.output_file(normalized=False, analysis=None, name="PCA_no_MinMax_normalization") as output_file:
+            self.log_with_time("Principal component analysis")
+            print("Principal component analysis.", file=output_file)
+            self.write_pca(size_corr_table, [size_var] + size_corr_variables, output_file, scale=False, graph=False)
+
         self.log_with_time("Diagnoses")
         with self.output_file(normalized=False, analysis=None, name="Diagnoses") as output_file:
             print("Diagnoses.", file=output_file)
@@ -617,12 +623,15 @@ class Analyzer:
         output_file.write('\n')
 
 
-    def write_pca(self, table: pd.DataFrame, variables: List[str], output_file: TextIO) -> None:
+    def write_pca(self, table: pd.DataFrame, variables: List[str], output_file: TextIO, scale:bool=True, graph:bool=True) -> None:
         RETAINED_VARIANCE = 0.75
         MIN_PC = 4
         MAX_PC = 6
         pca = PCA()
-        scaled_table = MinMaxScaler().fit_transform(table[variables])
+        if scale:
+            scaled_table = MinMaxScaler().fit_transform(table[variables])
+        else:
+            scaled_table = table[variables]
         principal_components = pca.fit_transform(scaled_table)
         explained_variance = 0
         for i, variance in enumerate(pca.explained_variance_ratio_):
@@ -642,9 +651,10 @@ class Analyzer:
         pca_table.to_csv(
             output_file, sep="\t", float_format="%.2f", line_terminator="\n",
             columns=['species'] + pc_columns[:MAX_PC])
-        self.log_with_time("Starting PCA plot")
-        self.plotter.pcaplot(pca_table)
-        self.log_with_time("Finished PCA plot")
+        if graph:
+            self.log_with_time("Starting PCA plot")
+            self.plotter.pcaplot(pca_table)
+            self.log_with_time("Finished PCA plot")
         loading = pca.components_.T * np.sqrt(pca.explained_variance_)
         loading_matrix = pd.DataFrame(
             loading[:, :pca_components],
