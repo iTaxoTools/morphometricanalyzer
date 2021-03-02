@@ -284,16 +284,18 @@ class Analyzer:
             size_corr_table_remarked.to_csv(
                 self.table_file, sep='\t', line_terminator='\n')
 
-            with self.output_file(normalized=True, analysis=analysis, name="LDA") as output_file:
-                print("Linear discriminant analysis.", file=output_file)
-                self.log_with_time("Linear Discriminant analysis")
-                # The result of Linear Discriminant analysis on normalized variables is written to the output file
-                self.write_lda(size_corr_table, size_corr_variables,
-                          analysis, output_file)
-
         # reinsert size_var back into the normalized table for the remaining analyses 
         size_corr_table.insert(loc=3, column=size_var,
                                value=self.table[size_var])
+
+        for current, analysis in enumerate(self.analyses):
+            with self.output_file(normalized=True, analysis=analysis, name="LDA") as output_file:
+                print("Linear discriminant analysis.", file=output_file)
+                self.log_with_time(f"Linear Discriminant analysis {current}")
+                # The result of Linear Discriminant analysis on normalized variables is written to the output file
+                self.write_lda(size_corr_table, [size_var] + size_corr_variables,
+                          analysis, output_file)
+
         # The result of Principal Component analysis on normalized variables is written to the output file
         with self.output_file(normalized=False, analysis=None, name="PCA") as output_file:
             self.log_with_time("Principal component analysis")
