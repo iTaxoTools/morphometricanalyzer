@@ -290,7 +290,7 @@ class Analyzer:
 
         for current, analysis in enumerate(self.analyses):
             with self.output_file(normalized=True, analysis=analysis, name="LDA") as output_file:
-                print("Linear discriminant analysis.", file=output_file)
+                print("Linear discriminant analysis.\n", file=output_file)
                 self.log_with_time(f"Linear Discriminant analysis {current}")
                 # The result of Linear Discriminant analysis on normalized variables is written to the output file
                 self.write_lda(size_corr_table, [size_var] + size_corr_variables,
@@ -299,18 +299,18 @@ class Analyzer:
         # The result of Principal Component analysis on normalized variables is written to the output file
         with self.output_file(normalized=False, analysis=None, name="PCA") as output_file:
             self.log_with_time("Principal component analysis")
-            print("Principal component analysis.", file=output_file)
+            print("Principal component analysis.\n", file=output_file)
             self.write_pca(size_corr_table, [size_var] + size_corr_variables, output_file)
 
         # PCA without scaling
         with self.output_file(normalized=False, analysis=None, name="PCA_no_MinMax_normalization") as output_file:
             self.log_with_time("Principal component analysis")
-            print("Principal component analysis.", file=output_file)
+            print("Principal component analysis.\n", file=output_file)
             self.write_pca(size_corr_table, [size_var] + size_corr_variables, output_file, scale=False, graph=False)
 
         self.log_with_time("Diagnoses")
         with self.output_file(normalized=False, analysis=None, name="Diagnoses") as output_file:
-            print("Diagnoses.", file=output_file)
+            print("Diagnoses.\n", file=output_file)
 
             # searches for instances of pairs of species with non-overlapping ranges in some variable and displays them in the output file
             order_species_ranges(
@@ -341,7 +341,7 @@ class Analyzer:
 
         self.log_with_time("1. Mean Analysis")
         with self.output_file(normalized, analysis, "Mean_analysis") as output_file:
-            print("1. Mean Analysis", file=output_file)
+            print("1. Mean Analysis\n", file=output_file)
             for result in mean_analysis(groupedtable, variables):
                 result.to_csv(output_file, float_format="%.3f",
                         sep='\t', line_terminator='\n')
@@ -357,7 +357,7 @@ class Analyzer:
         with self.output_file(normalized, analysis, "Simple_ANOVA") as output_file:
             # Header for the ANOVA analysis
             self.log_with_time("2. Simple ANOVA")
-            print("2. Simple ANOVA", file=output_file)
+            print("2. Simple ANOVA\n", file=output_file)
             if groupedtable_filtered:
                 print('\t'.join(["Variable", "N valid cases", "Degrees of Freedom",
                 "F-value", "P (Significance)"]), file=output_file)
@@ -396,7 +396,7 @@ class Analyzer:
         with self.output_file(normalized, analysis, "Students_t_test") as output_file:
             # Header for the Student's t-test analysis
             self.log_with_time("3. Student's t-test")
-            print("3. Student's t-test", file=output_file)
+            print("3. Student's t-test\n", file=output_file)
             if groupedtable_filtered:
                 print("\tStudent's t-test", file=output_file)
                 print('\t'.join(['Variable'] + variables), file=output_file)
@@ -434,7 +434,7 @@ class Analyzer:
 
         with self.output_file(normalized, analysis, "Median_analysis") as output_file:
             self.log_with_time("4. Median Analysis")
-            print("4. Median Analysis", file=output_file)
+            print("4. Median Analysis\n", file=output_file)
             for result in median_analysis(groupedtable, variables):
                 result.to_csv(output_file, float_format="%.3f",
                         sep='\t', line_terminator='\n')
@@ -446,7 +446,7 @@ class Analyzer:
         # After the loop the note about Bonferroni correction is written
         with self.output_file(normalized, analysis, "Kruskal_Wallis_ANOVA") as output_file:
             self.log_with_time("5. Kruskal-Wallis ANOVA")
-            print("5. Kruskal-Wallis ANOVA", file=output_file)
+            print("5. Kruskal-Wallis ANOVA\n", file=output_file)
             if groupedtable_filtered:
                 print("Variable", "N valid cases",
                         "P (significance)", sep='\t', file=output_file)
@@ -471,7 +471,7 @@ class Analyzer:
 
         with self.output_file(normalized, analysis, "Mann_Whitney_u_test") as output_file:
             self.log_with_time("6. Mann-Whitney U tests")
-            print("6. Mann-Whitney U tests", file=output_file)
+            print("6. Mann-Whitney U tests\n", file=output_file)
             if groupedtable_filtered:
                 print("U tests were implemented with continuity correction and two-tailed significances", file=output_file)
                 # the lines of the first table
@@ -515,7 +515,7 @@ class Analyzer:
         # After the loop over the variable this dictionary is used to construct remarks in the data table
         with self.output_file(normalized, analysis, "Outliers") as output_file:
             self.log_with_time("7. Outliers")
-            print("7. Outliers", file=output_file)
+            print("7. Outliers\n", file=output_file)
             print("The following outlier values have been identified. These may simply indicate specimens with morphometric peculiarities, but could also be measurement or data transformation errors. Please check them carefully!", file=output_file)
 
             def is_outlier(col: pd.Series) -> pd.Series:
@@ -559,7 +559,7 @@ class Analyzer:
         # Finally, the distance table is printed
         with self.output_file(normalized, analysis, "Distances") as output_file:
             self.log_with_time("8. Euclidean distance")
-            print("8. Euclidean distance", file=output_file)
+            print("8. Euclidean distance\n", file=output_file)
             eucl_dist = pd.DataFrame(
                     blank_upper_triangle(squareform(pdist(table_with_species[variables]))),
                     index=table_with_species.index,
@@ -570,7 +570,7 @@ class Analyzer:
             output_file.write('\n')
 
             self.log_with_time("9. Cosine distance")
-            print("9. Cosine distance", file=output_file)
+            print("9. Cosine distance\n", file=output_file)
             eucl_dist = pd.DataFrame(
                     blank_upper_triangle(squareform(
                         pdist(table_with_species[variables], metric='cosine'))),
