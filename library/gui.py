@@ -103,6 +103,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         self.filelist.delete(*self.filelist.get_children())
         self.preview.delete("1.0", "end")
         self.preview_frame.configure(text="Preview")
+        self.update()
         input_file = self.input_file.get()
         output_file = os.path.join(self.preview_dir, "output.txt")
         table_file = os.path.join(self.preview_dir, "adjusted_data_table.txt")
