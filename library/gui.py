@@ -34,27 +34,29 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         # make directory for graph previews
         os.mkdir(os.path.join(self.preview_dir, "graph_previews"))
 
+        self.panes = ttk.Panedwindow(self, orient='horizontal')
+        self.panes.grid(row=3, column=0, sticky="nsew")
         self.create_top_frame()
         self.create_parameters_frame()
         self.create_filelist_frame()
         self.create_preview_frame()
 
         ttk.Separator(self, orient="horizontal").grid(
-            row=1, column=0, columnspan=3, sticky="we")
+            row=1, column=0, sticky="we")
 
         self.input_file = tk.StringVar()
         ttk.Entry(self, textvariable=self.input_file).grid(
-            row=2, column=0, columnspan=3, sticky="we")
+            row=2, column=0, sticky="we")
 
         self.rowconfigure(3, weight=1)
-        self.columnconfigure(2, weight=1)
+        self.columnconfigure(0, weight=1)
         self.grid(row=0, column=0, sticky="nsew")
 
     def create_top_frame(self) -> None:
         top_frame = ttk.Frame(self, relief="sunken", padding=4)
-        top_frame.columnconfigure(5, weight=1)
+        top_frame.columnconfigure(6, weight=1)
         top_frame.rowconfigure(0, weight=1)
-        top_frame.grid(row=0, column=0, columnspan=3, sticky="nsew")
+        top_frame.grid(row=0, column=0, sticky="nsew")
 
         ttk.Label(top_frame, text="Morphometricanalyzer",
                   font=tkfont.Font(size=20)).grid(row=0, column=0)
@@ -67,18 +69,19 @@ class MorphometricAnalyzerGUI(ttk.Frame):
                  3, self.save_command("selected")),
                 ("save_all_button", "save_all.png",
                  "save_all", 4, self.save_command("all")),
-                ("run_button", "run.png", "run", 5, self.run_command)):
+                ("run_button", "run.png", "run", 5, self.run_command),
+                ("clear_button", "clear.png", "clear", 6, self.clear_command)):
             self.images[image_key] = tk.PhotoImage(
                 file=os.path.join(sys.path[0], "data", image_file))
             ttk.Button(top_frame, text=text,
                        image=self.images[image_key], compound="top", style="Toolbutton", padding=(10, 0), command=command).grid(row=0, column=column, sticky="w")
 
         ttk.Separator(top_frame, orient="vertical").grid(
-            row=0, column=6, sticky="nsew")
+            row=0, column=7, sticky="nsew")
         self.images["logo"] = tk.PhotoImage(file=os.path.join(
             sys.path[0], "data", "iTaxoTools Digital linneaeus MICROLOGO.png"))
         ttk.Label(top_frame, image=self.images["logo"]).grid(
-            row=0, column=7, sticky="nse")
+            row=0, column=8, sticky="nse")
 
     def open_command(self) -> None:
         path = tkfiledialog.askopenfilename()
@@ -100,9 +103,8 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         return command
 
     def run_command(self) -> None:
-        self.filelist.delete(*self.filelist.get_children())
-        self.preview.delete("1.0", "end")
-        self.preview_frame.configure(text="Preview")
+        self.clear_command()
+        self.update()
         input_file = self.input_file.get()
         output_file = os.path.join(self.preview_dir, "output.txt")
         table_file = os.path.join(self.preview_dir, "adjusted_data_table.txt")
@@ -146,6 +148,11 @@ class MorphometricAnalyzerGUI(ttk.Frame):
             tkmessagebox.showerror("Error", str(ex))
             raise ex from ex
 
+    def clear_command(self) -> None:
+        self.filelist.delete(*self.filelist.get_children())
+        self.preview.delete("1.0", "end")
+        self.preview_frame.configure(text="Preview")
+
     def outfilenames(self, which: str) -> Iterator[str]:
         if which == "all":
             index_list = self.filelist.get_children()
@@ -158,7 +165,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
 
     def create_parameters_frame(self) -> None:
         parameters_frame = ttk.LabelFrame(self, text="Parameters")
-        parameters_frame.grid(row=3, column=0, sticky="nsew")
+        self.panes.add(parameters_frame, weight=0)
         parameters_frame.rowconfigure(5, weight=1)
         parameters_frame.columnconfigure(0, weight=1)
 
@@ -203,7 +210,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         filelist_frame = ttk.Labelframe(self, text="Files")
         filelist_frame.rowconfigure(0, weight=1)
         filelist_frame.columnconfigure(0, weight=1)
-        filelist_frame.grid(row=3, column=1, rowspan=2, sticky="nsew")
+        self.panes.add(filelist_frame, weight=0)
 
         self.filelist = ttk.Treeview(filelist_frame,
                                      height=15, selectmode="extended", show="tree")
@@ -248,7 +255,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         self.preview_frame = ttk.LabelFrame(self, text="Preview")
         self.preview_frame.rowconfigure(0, weight=1)
         self.preview_frame.columnconfigure(0, weight=1)
-        self.preview_frame.grid(row=3, column=2, sticky="nsew")
+        self.panes.add(self.preview_frame, weight=1)
 
         self.preview = tk.Text(
             self.preview_frame, height=15, width=30, wrap="none")
