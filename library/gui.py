@@ -52,7 +52,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
 
     def create_top_frame(self) -> None:
         top_frame = ttk.Frame(self, relief="sunken", padding=4)
-        top_frame.columnconfigure(5, weight=1)
+        top_frame.columnconfigure(6, weight=1)
         top_frame.rowconfigure(0, weight=1)
         top_frame.grid(row=0, column=0, columnspan=3, sticky="nsew")
 
@@ -67,18 +67,19 @@ class MorphometricAnalyzerGUI(ttk.Frame):
                  3, self.save_command("selected")),
                 ("save_all_button", "save_all.png",
                  "save_all", 4, self.save_command("all")),
-                ("run_button", "run.png", "run", 5, self.run_command)):
+                ("run_button", "run.png", "run", 5, self.run_command),
+                ("clear_button", "clear.png", "clear", 6, self.clear_command)):
             self.images[image_key] = tk.PhotoImage(
                 file=os.path.join(sys.path[0], "data", image_file))
             ttk.Button(top_frame, text=text,
                        image=self.images[image_key], compound="top", style="Toolbutton", padding=(10, 0), command=command).grid(row=0, column=column, sticky="w")
 
         ttk.Separator(top_frame, orient="vertical").grid(
-            row=0, column=6, sticky="nsew")
+            row=0, column=7, sticky="nsew")
         self.images["logo"] = tk.PhotoImage(file=os.path.join(
             sys.path[0], "data", "iTaxoTools Digital linneaeus MICROLOGO.png"))
         ttk.Label(top_frame, image=self.images["logo"]).grid(
-            row=0, column=7, sticky="nse")
+            row=0, column=8, sticky="nse")
 
     def open_command(self) -> None:
         path = tkfiledialog.askopenfilename()
@@ -100,9 +101,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         return command
 
     def run_command(self) -> None:
-        self.filelist.delete(*self.filelist.get_children())
-        self.preview.delete("1.0", "end")
-        self.preview_frame.configure(text="Preview")
+        self.clear_command()
         self.update()
         input_file = self.input_file.get()
         output_file = os.path.join(self.preview_dir, "output.txt")
@@ -146,6 +145,11 @@ class MorphometricAnalyzerGUI(ttk.Frame):
             logging.error(ex)
             tkmessagebox.showerror("Error", str(ex))
             raise ex from ex
+
+    def clear_command(self) -> None:
+        self.filelist.delete(*self.filelist.get_children())
+        self.preview.delete("1.0", "end")
+        self.preview_frame.configure(text="Preview")
 
     def outfilenames(self, which: str) -> Iterator[str]:
         if which == "all":
