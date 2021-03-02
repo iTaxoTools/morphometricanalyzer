@@ -291,6 +291,7 @@ class Analyzer:
         for current, analysis in enumerate(self.analyses):
             with self.output_file(normalized=True, analysis=analysis, name="LDA") as output_file:
                 print("Linear discriminant analysis.\n", file=output_file)
+                print("This file shows the results of a Linear Discriminant Analysis carried out on the size-corrected data plus the size variable. The data shown are the values of the LDA components for each sample, and the assignment probability of each sample to the respective species.\n", file=output_file)
                 self.log_with_time(f"Linear Discriminant analysis {current}")
                 # The result of Linear Discriminant analysis on normalized variables is written to the output file
                 self.write_lda(size_corr_table, [size_var] + size_corr_variables,
@@ -300,6 +301,7 @@ class Analyzer:
         with self.output_file(normalized=False, analysis=None, name="PCA") as output_file:
             self.log_with_time("Principal component analysis")
             print("Principal component analysis.\n", file=output_file)
+            print("This file shows the results of a Principal Component Analysis carried out on the size-corrected data plus the size variable. The data shown are the values of the first four Principal Components (PCs) for each sample, and the factor loadings and percent explained variance for each variable in the analysis. All variables were Min-Max normalized before analysis.\n", file=output_file)
             self.write_pca(size_corr_table, [size_var] + size_corr_variables, output_file)
 
         # PCA without scaling
@@ -311,6 +313,7 @@ class Analyzer:
         self.log_with_time("Diagnoses")
         with self.output_file(normalized=False, analysis=None, name="Diagnoses") as output_file:
             print("Diagnoses.\n", file=output_file)
+            print("This file lists all cases of non-overlapping ranges of values for the size-corrected variables and the size variable in text format.\n", file=output_file)
 
             # searches for instances of pairs of species with non-overlapping ranges in some variable and displays them in the output file
             order_species_ranges(
@@ -559,6 +562,10 @@ class Analyzer:
         # Finally, the distance table is printed
         with self.output_file(normalized, analysis, "Distances") as output_file:
             self.log_with_time("8. Euclidean distance")
+            if normalized:
+                print("This file displays matrices of Euclidean and Cosine distances among individuals, calculated from the size-corrected morphometric data.\n", file=output_file)
+            else:
+                print("This file displays matrices of Euclidean and Cosine distances among individuals, calculated from the raw (not size-corrected) morphometric data.\n", file=output_file)
             print("8. Euclidean distance\n", file=output_file)
             eucl_dist = pd.DataFrame(
                     blank_upper_triangle(squareform(pdist(table_with_species[variables]))),
