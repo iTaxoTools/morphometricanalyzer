@@ -291,7 +291,7 @@ class Analyzer:
         for current, analysis in enumerate(self.analyses):
             with self.output_file(normalized=True, analysis=analysis, name="LDA") as output_file:
                 print("Linear discriminant analysis.\n", file=output_file)
-                print("This file shows the results of a Linear Discriminant Analysis carried out on the size-corrected data plus the size variable. The data shown are the values of the LDA components for each sample, and the assignment probability of each sample to the respective species.\n", file=output_file)
+                print("This file shows the results of a Linear Discriminant Analysis carried out on the size-corrected data plus the size variable. The data shown are the values of the LDA components for each sample.\n", file=output_file)
                 self.log_with_time(f"Linear Discriminant analysis {current}")
                 # The result of Linear Discriminant analysis on normalized variables is written to the output file
                 self.write_lda(size_corr_table, [size_var] + size_corr_variables,
@@ -612,23 +612,26 @@ class Analyzer:
         self.log_with_time("Starting LD plot")
         self.plotter.ldaplot(pd.concat([labels, principalDf], axis=1))
         self.log_with_time("Finished LD plot")
-        try:
-            prob_classes = clf.predict_proba(table[variables])
-        except FloatingPointError:
-            warnings.warn(
-                "Floating point error in Linear Discriminant Analysis probability prediction", category=RuntimeWarning)
-            pd.concat([table[analysis], principalDf], axis=1).to_csv(
-                output_file, sep="\t", float_format="%.2f", line_terminator="\n"
-            )
-        else:
-            prob_Df = pd.DataFrame(
-                prob_classes,
-                index=table.index,
-                columns=[f"Prob {group}" for group in clf.classes_]
-            )
-            pd.concat([table[analysis], principalDf, prob_Df], axis=1).to_csv(
-                output_file, sep="\t", float_format="%.2f", line_terminator="\n"
-            )
+        # try:
+        #     prob_classes = clf.predict_proba(table[variables])
+        # except FloatingPointError:
+        #     warnings.warn(
+        #         "Floating point error in Linear Discriminant Analysis probability prediction", category=RuntimeWarning)
+        #     pd.concat([table[analysis], principalDf], axis=1).to_csv(
+        #         output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+        #     )
+        # else:
+        #     prob_Df = pd.DataFrame(
+        #         prob_classes,
+        #         index=table.index,
+        #         columns=[f"Prob {group}" for group in clf.classes_]
+        #     )
+        #     pd.concat([table[analysis], principalDf, prob_Df], axis=1).to_csv(
+        #         output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+        #     )
+        pd.concat([table[analysis], principalDf], axis=1).to_csv(
+            output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+        )
         output_file.write('\n')
 
 
