@@ -291,7 +291,7 @@ class Analyzer:
         for current, analysis in enumerate(self.analyses):
             with self.output_file(normalized=True, analysis=analysis, name="LDA") as output_file:
                 print("Linear discriminant analysis.\n", file=output_file)
-                print("This file shows the results of a Linear Discriminant Analysis carried out on the size-corrected data plus the size variable. The data shown are the values of the LDA components for each sample, and the assignment probability of each sample to the respective species.\n", file=output_file)
+                print("This file shows the results of a Linear Discriminant Analysis carried out on the size-corrected data plus the size variable. The data shown are the values of the LDA components for each sample.\n", file=output_file)
                 self.log_with_time(f"Linear Discriminant analysis {current}")
                 # The result of Linear Discriminant analysis on normalized variables is written to the output file
                 self.write_lda(size_corr_table, [size_var] + size_corr_variables,
