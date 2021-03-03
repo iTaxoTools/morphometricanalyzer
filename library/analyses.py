@@ -612,23 +612,26 @@ class Analyzer:
         self.log_with_time("Starting LD plot")
         self.plotter.ldaplot(pd.concat([labels, principalDf], axis=1))
         self.log_with_time("Finished LD plot")
-        try:
-            prob_classes = clf.predict_proba(table[variables])
-        except FloatingPointError:
-            warnings.warn(
-                "Floating point error in Linear Discriminant Analysis probability prediction", category=RuntimeWarning)
-            pd.concat([table[analysis], principalDf], axis=1).to_csv(
-                output_file, sep="\t", float_format="%.2f", line_terminator="\n"
-            )
-        else:
-            prob_Df = pd.DataFrame(
-                prob_classes,
-                index=table.index,
-                columns=[f"Prob {group}" for group in clf.classes_]
-            )
-            pd.concat([table[analysis], principalDf, prob_Df], axis=1).to_csv(
-                output_file, sep="\t", float_format="%.2f", line_terminator="\n"
-            )
+        # try:
+        #     prob_classes = clf.predict_proba(table[variables])
+        # except FloatingPointError:
+        #     warnings.warn(
+        #         "Floating point error in Linear Discriminant Analysis probability prediction", category=RuntimeWarning)
+        #     pd.concat([table[analysis], principalDf], axis=1).to_csv(
+        #         output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+        #     )
+        # else:
+        #     prob_Df = pd.DataFrame(
+        #         prob_classes,
+        #         index=table.index,
+        #         columns=[f"Prob {group}" for group in clf.classes_]
+        #     )
+        #     pd.concat([table[analysis], principalDf, prob_Df], axis=1).to_csv(
+        #         output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+        #     )
+        pd.concat([table[analysis], principalDf], axis=1).to_csv(
+            output_file, sep="\t", float_format="%.2f", line_terminator="\n"
+        )
         output_file.write('\n')
 
 
