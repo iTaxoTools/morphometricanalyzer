@@ -128,8 +128,9 @@ class MorphometricAnalyzerGUI(ttk.Frame):
                 analyzer.set_size_var(self.size_var.get().casefold())
                 with warnings.catch_warnings(record=True) as warns:
                     analyzer.analyse()
-                    tkmessagebox.showwarning("Warning", '\n\n'.join(
-                        set(str(w.message) for w in warns)))
+                    if warns:
+                        tkmessagebox.showwarning("Warning", '\n\n'.join(
+                            set(str(w.message) for w in warns)))
                     self.fill_file_list()
                     self.tab_notice.grid(
                         row=5, column=0, columnspan=2, sticky='ws')
