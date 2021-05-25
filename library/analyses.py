@@ -528,7 +528,7 @@ class Analyzer:
                 q3 = col.quantile(0.75)
                 q1 = col.quantile(0.25)
                 iqr = q3 - q1
-                return (col > (q3 + 1.5 * iqr)).combine(col < (q1 - 1.5 * iqr), lambda x, y: x or y)
+                return (col > (q3 + 1.5 * iqr)) | (col < (q1 - 1.5 * iqr))
 
             specimen_with_outliers: Dict[str, List[str]] = {}
             for var in variables:
@@ -537,7 +537,7 @@ class Analyzer:
                 if outlier_specimen:
                     # print the row of the outlier table
                     print(f"{var}:", ', '.join(
-                        f"{specimenid} ({table[var][specimenid]})" for specimenid in outlier_specimen), file=output_file)
+                        f"{specimenid} ({table.at[specimenid, var]})" for specimenid in outlier_specimen), file=output_file)
 
                     # add the variable to the outlier dictionary
                     for specimenid in outlier_specimen:
