@@ -185,7 +185,10 @@ class Analyzer:
         table_file - buffer for the output of modified tables
         """
         self.table = pd.read_table(buf, index_col='specimenid', usecols=(
-            ['specimenid', 'species', 'sex', 'locality'] + variables + ['remark']), dtype={'remark': 'string'})
+            ['specimenid', 'species', 'sex', 'locality'] + variables + ['remark']), dtype={'remark': 'string'},
+            na_values={'specimenid': ""})
+        if self.table.index.hasnans or not self.table.index.is_unique:
+            raise ValueError("Problem detected with specimenid values: There are either duplicated or missing values. The analysis could not be executed. Please correct the error(s) in the input file.")
         self.table['remark'].fillna("", inplace=True)
         self.table_file = table_file
         self.analyses = analyses
@@ -553,7 +556,7 @@ class Analyzer:
 
         # relabels the table index from specimenid to specimenid_species
         table_with_species = table.rename(
-                index=(lambda specimen: table['species'][specimen].replace(' ', '_')+'_'+specimen))
+                index=(lambda specimen: table['species'][specimen].replace(' ', '_')+'_'+str(specimen)))
 
         # Next two parts construct tables with distances
         # Each use squareform and pdist from scipy.spatial to construct the table of distance
